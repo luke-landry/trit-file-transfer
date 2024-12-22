@@ -13,6 +13,12 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../bin")
 
 add_executable(trit
     src/main.cpp
+    src/utils.cpp
+    src/utils.h
+    src/Sender.cpp
+    src/Sender.h
+    src/Receiver.cpp
+    src/Receiver.h
 )
 
 # Include Asio library based on platform
