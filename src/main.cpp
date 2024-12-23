@@ -40,9 +40,15 @@ int main(int argc, char* argv[]){
 
         int port = std::stoi(port_str);
 
-        
-        Sender sender(ip_address_str, port);
-        sender.start_session();
+        try{
+            Sender sender(ip_address_str, port);
+            sender.start_session();
+        } catch(const std::system_error& e){
+            std::cout << "Exception: " << e.what() << std::endl;
+
+        } catch(const std::runtime_error& e){
+            std::cout << "Exception: " << e.what() << std::endl;
+        }
 
     } else if(mode == "receive"){
 

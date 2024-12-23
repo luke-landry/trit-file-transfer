@@ -1,5 +1,6 @@
 #include <iostream>
 #include <thread>
+#include <chrono>
 #include <stdexcept>
 
 #include "Receiver.h"
@@ -20,36 +21,23 @@ using asio::ip::tcp;
 
 Receiver::Receiver(const unsigned short port):
     io_context_(),
-    acceptor_(io_context_, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)), // Acceptor listening on all IPv4 interfaces (0.0.0.0)
-    socket_(io_context_) {};
+    socket_(io_context_),
+    acceptor_(io_context_, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)),
+    is_connected_(false) {};
 
 void Receiver::start_session(){
 
-    std::string address = get_private_ipv4_address();
-    const int port = acceptor_.local_endpoint().port();
+    // Waits for a connection to be established (blocking)
+    // Using blocking acceptor.accept() because the main thread has no 
+    // concurrent tasks to perform while waiting for a connection
+    wait_for_connection();
 
-    start_listening_for_connection();
-    std::cout << "Listening for connection at address " << address << " on port " << port << std::endl;
-
-
-    // Run io context for listening to connections in separate thread so that
-    // user input can be handled in main thread
-    std::thread io_thread([this]() {io_context_.run();});
-
-    // Waits for user to press enter to stop
-    std::cout << "Press Enter to stop...\n";
-    std::cin.get();
-
-    // Stop thread 
-    io_context_.stop();
-    if(io_thread.joinable()){
-        io_thread.join();
-    }
+    wait_for_transfer_request();
 }
 
 #ifdef __linux__
 // Queries and returns the private ip address of this device to be used by the sender
-// The first valid address (ipv4, not loopback, up, running) will be returned 
+// The first valid address found (ipv4, not loopback, up, running) will be returned 
 std::string Receiver::get_private_ipv4_address(){
 
     // Raw pointer to first element of linked list of network interface addresses returned by getifaddrs
@@ -65,8 +53,6 @@ std::string Receiver::get_private_ipv4_address(){
 
         // Ignore interfaces without an address
         if(ifa->ifa_addr == nullptr){ continue; }
-
-        std::cout << "Found network interface " << ifa->ifa_name << std::endl;
         
         // Read flags of network interface
         bool interface_address_is_ipv4 = ifa->ifa_addr->sa_family == AF_INET;
@@ -93,9 +79,9 @@ std::string Receiver::get_private_ipv4_address(){
         }
     }
 
-    // No valid address were found
+    // No valid ip address was found
     freeifaddrs(ifaddr);
-    throw std::runtime_error("No valid network interfaces were found");
+    throw std::runtime_error("No valid IP address found");
 }
 #endif
 
@@ -106,27 +92,20 @@ std::string Receiver::get_private_ipv4_address(){
 }
 #endif
 
-void Receiver::start_listening_for_connection(){
-    acceptor_.async_accept(socket_, [this](const asio::error_code& ec){
-        const std::string sender_address_str = socket_.remote_endpoint().address().to_string();
-        if(!ec){
-            char choice = utils::input<char>("Accept connection from " + sender_address_str + "? (y/n)", {'y', 'n'});
-            if(choice == 'y'){
-                accept_connection();
-            } else {
-                deny_connection();
-            }
-        }
+// Waits for a successful connection to be established
+void Receiver::wait_for_connection(){
+    std::string address = get_private_ipv4_address();
+    const int port = acceptor_.local_endpoint().port();
+    std::cout << "Listening for connection at address " << address << " on port " << port << "..." << std::endl;
 
-    });
+    // Block until a connection is established
+    // This will throw std::system_error if a connection fails
+    acceptor_.accept(socket_);
+    
+    std::string sender_address = socket_.remote_endpoint().address().to_string();
+    std::cout << "Connected to " << sender_address << std::endl;
 }
 
-void Receiver::accept_connection(){
-    std::cout << "Connection accepted." << std::endl;
-}
-
-void Receiver::deny_connection(){
-    socket_.close();
-    std::cout << "Connection denied. Waiting for the next connection..." << std::endl;
-    start_listening_for_connection();
+void Receiver::wait_for_transfer_request(){
+    std::cout << "Awaiting file transfer request..." << std::endl;
 }
