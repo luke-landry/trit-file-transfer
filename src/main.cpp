@@ -11,7 +11,7 @@
 int main(int argc, char* argv[]){
 
     if(argc == 1){
-        std::cout << "Usage: 'trit send <ip> <port>' or 'trit receive <port/optional>'" << std::endl;
+        std::cout << "Usage: 'trit send <ip> <port>' or 'trit receive'" << std::endl;
         return 0;
     }
 
@@ -40,34 +40,29 @@ int main(int argc, char* argv[]){
 
         int port = std::stoi(port_str);
 
-        Sender sender;
-        sender.start_session(ip_address_str, port);
+        
+        Sender sender(ip_address_str, port);
+        sender.start_session();
 
     } else if(mode == "receive"){
-        int port;
 
-        if(args.size() == 1){
+        // Using randomly generated unreserved port for receiver
+        unsigned short port = utils::generate_random_port();
 
-            // Using port 50505 as default port for this program
-            port = 50505;            
-            
-        } else if(args.size() == 2) {
-            const std::string& port_str = args[1];
-
-            if (!utils::is_valid_port(port_str)){
-                std::cout << "Invalid port" << std::endl;
-                return 0;
-            }
-
-            port = std::stoi(port_str);
-
-        } else {
-            std::cout << "Receive mode takes maximum one parameter: trit receive <port/optional>" << std::endl;
+        if(args.size() != 1){
+            std::cout << "Receive mode takes no parameters: trit receive" << std::endl;
             return 0;
         }
 
-        Receiver receiver;
-        receiver.start_session(port);
+        try{
+            Receiver receiver(port);
+            receiver.start_session();
+        } catch(const std::system_error& e){
+            std::cout << "Exception: " << e.what() << std::endl;
+
+        } catch(const std::runtime_error& e){
+            std::cout << "Exception: " << e.what() << std::endl;
+        }
 
     } else{
         std::cout << "Please enter a valid mode: either 'send' with two parameters or 'receive' with no parameters" << std::endl;

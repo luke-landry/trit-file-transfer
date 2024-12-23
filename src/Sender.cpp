@@ -1,6 +1,8 @@
 
 #include "Sender.h"
 
-void Sender::start_session(const std::string& recipient_ip_address, const int recipient_port){
+Sender::Sender(const std::string ip_address_str, const int port): ip_address_str(ip_address_str), port(port) {};
+
+void Sender::start_session(){
 
 }

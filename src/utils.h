@@ -11,6 +11,7 @@ namespace utils {
     // Non-template function declarations
     bool is_valid_ip_address(const std::string& ip);
     bool is_valid_port(const std::string& port);
+    unsigned short generate_random_port();
 
     // Template function definitions
 
@@ -19,11 +20,11 @@ namespace utils {
     If a vector of expected values is not provided, then any valid input is allowed.
     */
     template <typename T>
-    T input(const std::string& prompt, const std::vector<T>& expectedValues = {}){
-        bool inputValid = false;
+    T input(const std::string& prompt, const std::vector<T>& expected_values = {}){
+        bool input_valid = false;
         T input;
 
-        while(!inputValid){
+        while(!input_valid){
             std::cout << prompt << ": ";
             std::cin >> input;
 
@@ -36,12 +37,12 @@ namespace utils {
             }
 
             // Check against allowed values (if any)
-            if((!expectedValues.empty()) && (std::find(expectedValues.begin(), expectedValues.end(), input) == expectedValues.end())){
+            if((!expected_values.empty()) && (std::find(expected_values.begin(), expected_values.end(), input) == expected_values.end())){
                 std::cout << "Please enter an allowed option" << std::endl;
                 continue;
             }
 
-            inputValid = true;
+            input_valid = true;
         }
 
         return input;

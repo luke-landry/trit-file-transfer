@@ -1,4 +1,5 @@
 
+#include <random>
 #include <asio.hpp>
 
 #include "utils.h"
@@ -31,6 +32,17 @@ bool utils::is_valid_port(const std::string& port_str){
         return false;
     }
 
-    // Port number must be 49152-65535 (non-reserved port range)
+    
     return (port_ul >= 49152) && (port_ul <= 65535);
+}
+
+// Randomly generates a non-reserved port number
+unsigned short utils::generate_random_port(){
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    // Port number must be 49152-65535 (non-reserved port range)
+    std::uniform_int_distribution<> distribution(49152, 65535);
+
+    return distribution(gen);
 }
