@@ -17,7 +17,7 @@ sudo apt install libasio-dev
 3. Configure the cmake build system by running the following (in the project root directory)
     - Also run this command whenever CMakeLists.txt is modified (e.g. adding new source files)
 ```bash
-cmake -B build S
+cmake -B build -S .
 ```
 
 #### Compilation

@@ -14,6 +14,7 @@ namespace utils {
     bool is_valid_ip_address(const std::string& ip);
     bool is_valid_port(const std::string& port);
     unsigned short generate_random_port();
+    std::vector<std::string> string_split(const std::string& str);
 
     // Template function definitions
 
@@ -22,12 +23,12 @@ namespace utils {
     If a vector of expected values is not provided, then any valid input is allowed.
     */
     template <typename T>
-    T input(const std::string& prompt, const std::vector<T>& expected_values = {}){
+    T input(const std::string& prompt = "", const std::vector<T>& expected_values = {}){
         bool input_valid = false;
         T input;
 
         while(!input_valid){
-            std::cout << prompt << ": ";
+            std::cout << prompt << std::endl;
             std::cin >> input;
 
             // Check for input stream error (due to invalid input) and handle failure
@@ -49,6 +50,10 @@ namespace utils {
 
         return input;
     }
+
+    // Specialization of input function template necessary for getting entire line of string
+    template <>
+    std::string input<std::string>(const std::string& prompt, const std::vector<std::string>& expected_values);
 
 };
 

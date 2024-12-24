@@ -14,7 +14,6 @@ class Receiver {
         asio::io_context io_context_;
         asio::ip::tcp::socket socket_;
         asio::ip::tcp::acceptor acceptor_;
-        std::atomic<bool> is_connected_;
 
         std::string get_private_ipv4_address();
         void start_listening_for_connection();

@@ -22,8 +22,7 @@ using asio::ip::tcp;
 Receiver::Receiver(const unsigned short port):
     io_context_(),
     socket_(io_context_),
-    acceptor_(io_context_, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)),
-    is_connected_(false) {};
+    acceptor_(io_context_, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {};
 
 void Receiver::start_session(){
 
