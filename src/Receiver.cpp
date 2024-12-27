@@ -2,7 +2,6 @@
 #include <thread>
 #include <chrono>
 #include <stdexcept>
-#include <optional>
 
 #include "Receiver.h"
 #include "utils.h"
@@ -34,7 +33,7 @@ void Receiver::start_session(){
 
     while(!accept_transfer_request(transfer_request)){ transfer_request = receive_transfer_request(); }
 
-    receive_files();
+    receive_files(transfer_request);
 }
 
 #ifdef __linux__
@@ -169,6 +168,6 @@ bool Receiver::accept_transfer_request(const TransferRequest& transfer_request){
     return request_accepted;
 }
 
-void Receiver::receive_files(){
+void Receiver::receive_files(const TransferRequest& transfer_request){
     std::cout << "Receiving files..." << std::endl;
 }

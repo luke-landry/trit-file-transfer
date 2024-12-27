@@ -22,7 +22,7 @@ class Receiver {
         void wait_for_connection();
         TransferRequest receive_transfer_request();
         bool accept_transfer_request(const TransferRequest& transfer_request);
-        void receive_files();
+        void receive_files(const TransferRequest& transfer_request);
 };
 
 #endif

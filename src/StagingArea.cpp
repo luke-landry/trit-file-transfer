@@ -12,7 +12,7 @@ void StagingArea::stage_files(){
     std::cout << "Stage files for transfer (enter 'help' for commands)" << std::endl;
     
     std::string action;
-    while(action != "transfer"){
+    while(action != "transfer"  && action != "t"){
 
         // Get user command and split into command tokens
         std::vector<std::string> command_tokens = utils::string_split(utils::input<std::string>());
@@ -22,7 +22,7 @@ void StagingArea::stage_files(){
 
         std::cout << "Action: " << action << std::endl;
 
-        if(action == "stage"){
+        if(action == "stage" || action == "s"){
 
             std::unordered_set<std::filesystem::path> cwd_file_paths;
             for(const auto& entry : std::filesystem::recursive_directory_iterator(staging_root_)){
@@ -38,7 +38,7 @@ void StagingArea::stage_files(){
                 )
             );
 
-        } else if (action == "unstage"){
+        } else if (action == "unstage" || action == "u"){
 
             unstage(
                 resolve_file_strs_to_paths(
@@ -47,14 +47,14 @@ void StagingArea::stage_files(){
                 )
             );
 
-        } else if (action == "list"){
+        } else if (action == "list" || action == "l"){
 
             list(staged_file_paths_);
         
-        } else if (action == "help"){
+        } else if (action == "help" || action == "h"){
             help();
 
-        } else if (action != "transfer"){
+        } else if (action != "transfer" && action != "t"){
             std::cout << "Unknown command '" << action << "'" << std::endl;
         }
     }
@@ -179,5 +179,6 @@ void StagingArea::help(){
     std::cout << "\tUse *.x to unstage all staged files in the working directory with the same file extension x\n";
     std::cout << "List staged files: list\n";
     std::cout << "Display commands: help\n";
-    std::cout << "Send transfer request: transfer" << std::endl;
+    std::cout << "Send transfer request: transfer\n";
+    std::cout << "The stage, unstage, list, help, and transfer commands can also be abbrevated as s, u, l, h, t, respectively" << std::endl;
 }

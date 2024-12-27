@@ -4,7 +4,6 @@
 
 #include "Sender.h"
 #include "utils.h"
-#include "TransferRequest.h"
 
 Sender::Sender(const std::string ip_address_str, const unsigned short port): 
     io_context_(),
@@ -17,12 +16,14 @@ void Sender::start_session(){
     connect_to_receiver();
 
     stage_files_for_transfer();
+    TransferRequest transfer_request = send_transfer_request();
 
-    send_transfer_request();
-
-    if(transfer_request_accepted()){
-        send_files();
+    while(!transfer_request_accepted()){
+        stage_files_for_transfer();
+        transfer_request = send_transfer_request();
     }
+
+    send_files(transfer_request);
 }
 
 void Sender::connect_to_receiver(){
@@ -39,7 +40,7 @@ void Sender::stage_files_for_transfer(){
     stagingArea_.stage_files();
 }
 
-bool Sender::send_transfer_request(){
+TransferRequest Sender::send_transfer_request(){
 
     TransferRequest transfer_request = TransferRequest::from_file_paths(stagingArea_.get_staged_file_paths());
     std::vector<uint8_t> transfer_request_buffer = transfer_request.serialize();
@@ -55,7 +56,7 @@ bool Sender::send_transfer_request(){
     asio::write(socket_, asio::buffer(&transfer_request_buffer_size, sizeof(transfer_request_buffer_size)));
     asio::write(socket_, asio::buffer(transfer_request_buffer));
 
-    return true;
+    return transfer_request;
 }
 
 bool Sender::transfer_request_accepted(){
@@ -70,6 +71,6 @@ bool Sender::transfer_request_accepted(){
     return request_accepted;
 }
 
-void Sender::send_files(){
+void Sender::send_files(const TransferRequest& transfer_request){
     std::cout << "Sending files..." << std::endl;
 }

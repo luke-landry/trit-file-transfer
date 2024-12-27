@@ -5,6 +5,7 @@
 #include <string>
 
 #include "StagingArea.h"
+#include "TransferRequest.h"
 
 class Sender {
     public:
@@ -19,9 +20,9 @@ class Sender {
 
         void connect_to_receiver();
         void stage_files_for_transfer();
-        bool send_transfer_request();
+        TransferRequest send_transfer_request();
         bool transfer_request_accepted();
-        void send_files();
+        void send_files(const TransferRequest& transfer_request);
 };
 
 #endif

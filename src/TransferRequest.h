@@ -1,3 +1,5 @@
+#ifndef TRANSFER_REQUEST_H
+#define TRANSFER_REQUEST_H
 
 #include <unordered_set>
 #include <vector>
@@ -39,3 +41,5 @@ class TransferRequest {
         uint32_t num_chunks_;
         std::vector<FileInfo> file_infos_;
 };
+
+#endif
