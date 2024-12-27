@@ -135,7 +135,7 @@ TransferRequest TransferRequest::deserialize(const std::vector<uint8_t>& buffer)
     fileN path [variable]
     fileN size [8 bytes]
 */
-std::vector<uint8_t> TransferRequest::serialize(){
+std::vector<uint8_t> TransferRequest::serialize() const{
 
     std::vector<uint8_t> transfer_request_buffer;
 
@@ -162,7 +162,7 @@ std::vector<uint8_t> TransferRequest::serialize(){
     return transfer_request_buffer;
 }
 
-void TransferRequest::print(){
+void TransferRequest::print() const {
     std::cout << "Transfer Request\n";
     std::cout << "Number of files: " << num_files_ << "\n";
     std::cout << "Total transfer size: " << transfer_size_ << " bytes\n";

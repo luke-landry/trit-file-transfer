@@ -20,7 +20,9 @@ void Sender::start_session(){
 
     send_transfer_request();
 
-    send_files();
+    if(transfer_request_accepted()){
+        send_files();
+    }
 }
 
 void Sender::connect_to_receiver(){
@@ -56,6 +58,18 @@ bool Sender::send_transfer_request(){
     return true;
 }
 
-void Sender::send_files(){
+bool Sender::transfer_request_accepted(){
+    uint8_t request_accepted_byte;
 
+    asio::read(socket_, asio::buffer(&request_accepted_byte, sizeof(request_accepted_byte)));
+
+    bool request_accepted = request_accepted_byte;
+
+    std::cout << ((request_accepted ? "Transfer accepted" : "Transfer denied")) << std::endl;
+
+    return request_accepted;
+}
+
+void Sender::send_files(){
+    std::cout << "Sending files..." << std::endl;
 }

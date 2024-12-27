@@ -20,6 +20,7 @@ class Sender {
         void connect_to_receiver();
         void stage_files_for_transfer();
         bool send_transfer_request();
+        bool transfer_request_accepted();
         void send_files();
 };
 

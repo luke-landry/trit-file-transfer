@@ -2,10 +2,10 @@
 #include <thread>
 #include <chrono>
 #include <stdexcept>
+#include <optional>
 
 #include "Receiver.h"
 #include "utils.h"
-#include "TransferRequest.h"
 
 #ifdef __linux__
 #include <ifaddrs.h>
@@ -17,8 +17,6 @@
 #ifdef _WIN32
 // TODO Windows specific includes
 #endif
-
-using asio::ip::tcp;
 
 Receiver::Receiver(const unsigned short port):
     io_context_(),
@@ -32,7 +30,11 @@ void Receiver::start_session(){
     // concurrent tasks to perform while waiting for a connection
     wait_for_connection();
 
-    receive_transfer_request();
+    TransferRequest transfer_request = receive_transfer_request();
+
+    while(!accept_transfer_request(transfer_request)){ transfer_request = receive_transfer_request(); }
+
+    receive_files();
 }
 
 #ifdef __linux__
@@ -129,7 +131,7 @@ void Receiver::wait_for_connection(){
     fileN path [variable]
     fileN size [8 bytes]
 */
-bool Receiver::receive_transfer_request(){
+TransferRequest Receiver::receive_transfer_request(){
     std::cout << "Awaiting file transfer request..." << std::endl;
 
     // Transfer request buffer size stored as uint64_t (8 bytes long)
@@ -143,12 +145,30 @@ bool Receiver::receive_transfer_request(){
     std::cout << "Receiving transfer request..." << std::endl;
     asio::read(socket_, asio::buffer(transfer_request_buffer));
 
-    std::cout << "Received data (" << transfer_request_buffer_size << " bytes):" << std::endl;
+    std::cout << "Received transfer request data (" << transfer_request_buffer_size << " bytes):" << std::endl;
     utils::print_buffer(transfer_request_buffer);
 
-    TransferRequest transfer_request = TransferRequest::deserialize(transfer_request_buffer);
+    return TransferRequest::deserialize(transfer_request_buffer);
+}
+
+bool Receiver::accept_transfer_request(const TransferRequest& transfer_request){
 
     transfer_request.print();
 
-    return true;
+    char choice = utils::input<char>("Accept transfer request? (y/n)", {'y', 'n'});
+
+    bool request_accepted = choice == 'y';
+
+    uint8_t request_accepted_byte = request_accepted;
+
+    // Send accept/deny response to sender (0 is deny, 1 is accept)
+    asio::write(socket_, asio::buffer(&request_accepted_byte, sizeof(request_accepted_byte)));
+
+    std::cout << ((request_accepted ? "Transfer accepted" : "Transfer denied")) << std::endl;
+
+    return request_accepted;
+}
+
+void Receiver::receive_files(){
+    std::cout << "Receiving files..." << std::endl;
 }

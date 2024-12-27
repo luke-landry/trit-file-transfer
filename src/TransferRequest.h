@@ -10,8 +10,8 @@ class TransferRequest {
     public:
         static TransferRequest from_file_paths(const std::unordered_set<std::filesystem::path>& file_paths);
         static TransferRequest deserialize(const std::vector<uint8_t>& buffer);
-        std::vector<uint8_t> serialize();
-        void print();
+        std::vector<uint8_t> serialize() const;
+        void print() const;
 
     private:
 
@@ -32,10 +32,10 @@ class TransferRequest {
                         uint32_t num_chunks,
                         std::vector<FileInfo> file_infos);
     
-        const uint32_t num_files_;
-        const uint64_t transfer_size_;
-        const uint32_t uncompressed_chunk_size_;
-        const uint32_t uncompressed_last_chunk_size_;
-        const uint32_t num_chunks_;
-        const std::vector<FileInfo> file_infos_;
+        uint32_t num_files_;
+        uint64_t transfer_size_;
+        uint32_t uncompressed_chunk_size_;
+        uint32_t uncompressed_last_chunk_size_;
+        uint32_t num_chunks_;
+        std::vector<FileInfo> file_infos_;
 };
