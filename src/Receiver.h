@@ -18,7 +18,7 @@ class Receiver {
         std::string get_private_ipv4_address();
         void start_listening_for_connection();
         void wait_for_connection();
-        void wait_for_transfer_request();
+        bool receive_transfer_request();
 };
 
 #endif

@@ -5,6 +5,7 @@
 
 #include "Receiver.h"
 #include "utils.h"
+#include "TransferRequest.h"
 
 #ifdef __linux__
 #include <ifaddrs.h>
@@ -31,7 +32,7 @@ void Receiver::start_session(){
     // concurrent tasks to perform while waiting for a connection
     wait_for_connection();
 
-    wait_for_transfer_request();
+    receive_transfer_request();
 }
 
 #ifdef __linux__
@@ -91,6 +92,7 @@ std::string Receiver::get_private_ipv4_address(){
 }
 #endif
 
+
 // Waits for a successful connection to be established
 void Receiver::wait_for_connection(){
     std::string address = get_private_ipv4_address();
@@ -105,6 +107,48 @@ void Receiver::wait_for_connection(){
     std::cout << "Connected to " << sender_address << std::endl;
 }
 
-void Receiver::wait_for_transfer_request(){
+/*
+    This function waits for, receives, and deserializes the file transfer request from the sender
+    --------------------------
+    Transfer request format:
+    transfer reqeust size [8 bytes]
+
+    number of files [4 bytes]
+    total transfer size [8 bytes]
+    uncompressed chunk size [4 bytes]
+    uncompressed last chunk size [4 bytes]
+    num chunks [4 bytes]
+    file1 path length [2 bytes]
+    file1 path [variable]
+    file1 size [8 bytes]
+    file2 path length [2 bytes]
+    file2 path [variable]
+    file2 size [8 bytes]
+    ...
+    fileN path length [2 bytes]
+    fileN path [variable]
+    fileN size [8 bytes]
+*/
+bool Receiver::receive_transfer_request(){
     std::cout << "Awaiting file transfer request..." << std::endl;
+
+    // Transfer request buffer size stored as uint64_t (8 bytes long)
+    uint64_t transfer_request_buffer_size;
+    asio::read(socket_, asio::buffer(&transfer_request_buffer_size, sizeof(transfer_request_buffer_size)));
+
+    std::cout << "Received transfer request size of " << transfer_request_buffer_size << " bytes" << std::endl;
+
+    std::vector<uint8_t> transfer_request_buffer(transfer_request_buffer_size);
+
+    std::cout << "Receiving transfer request..." << std::endl;
+    asio::read(socket_, asio::buffer(transfer_request_buffer));
+
+    std::cout << "Received data (" << transfer_request_buffer_size << " bytes):" << std::endl;
+    utils::print_buffer(transfer_request_buffer);
+
+    TransferRequest transfer_request = TransferRequest::deserialize(transfer_request_buffer);
+
+    transfer_request.print();
+
+    return true;
 }

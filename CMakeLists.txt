@@ -21,8 +21,8 @@ add_executable(trit
     src/Receiver.h
     src/StagingArea.cpp
     src/StagingArea.h
-    src/FileChunk.cpp
-    src/FileChunk.h
+    src/TransferRequest.cpp
+    src/TransferRequest.h
 )
 
 # Include Asio library based on platform

@@ -1,5 +1,6 @@
 
 #include <random>
+#include <iomanip>
 #include <asio.hpp>
 
 #include "utils.h"
@@ -83,4 +84,49 @@ std::string utils::input<std::string>(const std::string& prompt, const std::vect
     }
 
     return input;
+}
+
+// Specialization of serialization function template for std::string
+template <>
+void utils::serialize<std::string>(const std::string& str, std::vector<uint8_t>& buffer){
+    // Insert the chars of the string into the byte vector buffer
+    buffer.insert(buffer.end(), str.begin(), str.end());
+}
+
+// Prints the values of each byte of the buffer in hex, with 8 bytes per line
+void utils::print_buffer(std::vector<uint8_t> buffer){
+
+    // Preserve cout flags to be restored
+    std::ios_base::fmtflags cout_flags(std::cout.flags());
+
+    // Set hex output format two places with 0 as fill
+    std::cout << std::setw(2) << std::setfill('0') << std::hex;
+
+    int counter = 1;
+    for (const auto& byte : buffer) {
+        std::cout << "0x" << static_cast<int>(byte) << " ";
+        if (counter % 8 == 0) {
+            std::cout << std::endl;
+        }
+        counter++;
+    }
+    std::cout << std::endl;
+
+    std::cout.flags(cout_flags);
+}
+
+// Specialization of deserialization function template for std::string
+// Caller must resize out_value string to their desired length before calling this function
+template<>
+std::vector<uint8_t>::const_iterator utils::deserialize<std::string>(const std::vector<uint8_t>::const_iterator it, const std::vector<uint8_t>::const_iterator end, std::string& out_value){
+
+    size_t string_size = out_value.size();
+    auto buffer_distance = end - it;
+
+    if(buffer_distance < string_size){ throw std::runtime_error("Invalid buffer size"); }
+
+    // Copy bytes of buffer into string
+    std::copy(it, it + string_size, out_value.begin());
+
+    return it + string_size;
 }
