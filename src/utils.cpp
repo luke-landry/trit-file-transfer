@@ -1,6 +1,7 @@
 
 #include <random>
 #include <iomanip>
+#include <cmath>
 #include <asio.hpp>
 
 #include "utils.h"
@@ -129,4 +130,35 @@ std::vector<uint8_t>::const_iterator utils::deserialize<std::string>(const std::
     std::copy(it, it + string_size, out_value.begin());
 
     return it + string_size;
+}
+
+std::string utils::format_data_size(uint64_t size_in_bytes){
+
+    if(size_in_bytes == 0){
+        return "0 B";
+    }
+
+    // Cast from double to int, truncating decimals
+    int power_of_1000 = static_cast<int>(std::log10(size_in_bytes) / 3.0);
+
+    if(power_of_1000 == 0){
+        return std::to_string(size_in_bytes) + " B";
+    }
+
+    if(power_of_1000 > 5){
+        throw std::runtime_error("Data size too large to format");
+    }
+
+    // First element is a dummy element to align powers of 1000 indices with corresponding units
+    std::vector<std::string> units = {"", " KB", " MB", " GB", " TB", " PB"};
+
+    // Unit value after converting unit to a power of 1000 (e.g 10524 -> 10.524)
+    double unit_value = size_in_bytes / (std::pow(1000, power_of_1000));
+    
+    // Format unit value to two decimal places (e.g. 10.524 -> 10.52)
+    std::ostringstream unit_value_oss;
+    unit_value_oss << std::fixed << std::setprecision(2) << unit_value;
+
+    // Return <unit value> <units>
+    return unit_value_oss.str() + units[power_of_1000];
 }

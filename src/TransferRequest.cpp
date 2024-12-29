@@ -174,4 +174,6 @@ void TransferRequest::print() const {
     for(const auto& file_info : file_infos_){
         std::cout << "[" << file_info.size << " bytes]\t" << file_info.path << std::endl;
     }
+
+    std::cout << "Summary: " << num_files_ << " files (" << utils::format_data_size(transfer_size_) << ")" << std::endl;
 }

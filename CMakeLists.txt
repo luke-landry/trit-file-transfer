@@ -23,6 +23,7 @@ add_executable(trit
     src/StagingArea.h
     src/TransferRequest.cpp
     src/TransferRequest.h
+    src/BoundedThreadSafeQueue.h
 )
 
 # Include Asio library based on platform
