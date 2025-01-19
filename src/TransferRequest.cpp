@@ -148,18 +148,33 @@ std::vector<uint8_t> TransferRequest::serialize() const{
 
     // Serialize file size and generic path strings
     for(const auto& file_info : file_infos_){
-        if(file_info.path.size() > std::numeric_limits<uint16_t>().max()){
-            throw std::runtime_error("File path too large: " + file_info.path);
+        if(file_info.relative_path.size() > std::numeric_limits<uint16_t>().max()){
+            throw std::runtime_error("File path too large: " + file_info.relative_path);
         }
 
-        uint16_t path_length = static_cast<uint16_t>(file_info.path.size());
+        uint16_t path_length = static_cast<uint16_t>(file_info.relative_path.size());
 
         utils::serialize(path_length, transfer_request_buffer);
-        utils::serialize(file_info.path, transfer_request_buffer);
+        utils::serialize(file_info.relative_path, transfer_request_buffer);
         utils::serialize(file_info.size, transfer_request_buffer);
     }
 
     return transfer_request_buffer;
+}
+
+std::vector<std::filesystem::path> TransferRequest::get_file_paths(){
+    std::vector<std::filesystem::path> file_paths;
+    std::filesystem::path cwd = std::filesystem::current_path();
+
+    for(const auto& file_info : file_infos_){
+        file_paths.emplace_back(cwd / file_info.relative_path);
+    }
+
+    return file_paths;
+}
+
+uint32_t TransferRequest::get_chunk_size(){
+    return uncompressed_chunk_size_;
 }
 
 void TransferRequest::print() const {
@@ -172,7 +187,7 @@ void TransferRequest::print() const {
     std::cout << "Files: " << std::endl;
 
     for(const auto& file_info : file_infos_){
-        std::cout << "[" << file_info.size << " bytes]\t" << file_info.path << std::endl;
+        std::cout << "[" << file_info.size << " bytes]\t" << file_info.relative_path << std::endl;
     }
 
     std::cout << "Summary: " << num_files_ << " files (" << utils::format_data_size(transfer_size_) << ")" << std::endl;

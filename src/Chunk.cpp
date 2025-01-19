@@ -1,7 +1,7 @@
 
 #include "Chunk.h"
 
-Chunk::Chunk(unsigned int sequence_num, std::size_t size): sequence_num_(sequence_num), data_(size) {};
+Chunk::Chunk(unsigned int sequence_num, std::vector<uint8_t>&& data): sequence_num_(sequence_num), data_(std::move(data)) {};
 
 unsigned int Chunk::sequence_num(){ return sequence_num_; }
 

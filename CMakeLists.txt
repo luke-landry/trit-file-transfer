@@ -24,6 +24,8 @@ add_executable(trit
     src/TransferRequest.cpp
     src/TransferRequest.h
     src/BoundedThreadSafeQueue.h
+    src/FileChunker.cpp
+    src/FileChunker.h
 )
 
 # Include Asio library based on platform

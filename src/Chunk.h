@@ -4,7 +4,7 @@
 
 class Chunk {
     public:
-        Chunk(unsigned int sequence_num, std::size_t size);
+        Chunk(unsigned int sequence_num, std::vector<uint8_t>&& data);
 
         unsigned int sequence_num();
         const unsigned int sequence_num() const;
