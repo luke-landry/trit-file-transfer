@@ -6,13 +6,13 @@ TransferRequest::TransferRequest(
     uint32_t num_files, 
     uint64_t transfer_size, 
     uint32_t uncompressed_chunk_size, 
-    uint32_t uncompressed_last_chunk_size, 
+    uint32_t uncompressed_final_chunk_size, 
     uint32_t num_chunks,
     std::vector<FileInfo> file_infos
 ): num_files_(num_files),
     transfer_size_(transfer_size),
     uncompressed_chunk_size_(uncompressed_chunk_size),
-    uncompressed_last_chunk_size_(uncompressed_last_chunk_size),
+    uncompressed_final_chunk_size_(uncompressed_final_chunk_size),
     num_chunks_(num_chunks),
     file_infos_(file_infos) {};
 
@@ -143,7 +143,7 @@ std::vector<uint8_t> TransferRequest::serialize() const{
     utils::serialize(num_files_, transfer_request_buffer);
     utils::serialize(transfer_size_, transfer_request_buffer);
     utils::serialize(uncompressed_chunk_size_, transfer_request_buffer);
-    utils::serialize(uncompressed_last_chunk_size_, transfer_request_buffer);
+    utils::serialize(uncompressed_final_chunk_size_, transfer_request_buffer);
     utils::serialize(num_chunks_, transfer_request_buffer);
 
     // Serialize file size and generic path strings
@@ -173,7 +173,7 @@ std::vector<std::filesystem::path> TransferRequest::get_file_paths(){
     return file_paths;
 }
 
-uint32_t TransferRequest::get_chunk_size(){
+uint32_t TransferRequest::get_chunk_size() const{
     return uncompressed_chunk_size_;
 }
 
@@ -182,13 +182,25 @@ void TransferRequest::print() const {
     std::cout << "Number of files: " << num_files_ << "\n";
     std::cout << "Total transfer size: " << transfer_size_ << " bytes\n";
     std::cout << "Uncompressed chunk size: " << uncompressed_chunk_size_ << " bytes\n";
-    std::cout << "Uncompressed last chunk size: " << uncompressed_last_chunk_size_ << " bytes\n";
+    std::cout << "Uncompressed last chunk size: " << uncompressed_final_chunk_size_ << " bytes\n";
     std::cout << "Number of chunks: " << num_chunks_ << "\n";
     std::cout << "Files: " << std::endl;
 
     for(const auto& file_info : file_infos_){
-        std::cout << "[" << file_info.size << " bytes]\t" << file_info.relative_path << std::endl;
+        std::cout << "()" << file_info.size << " bytes)\t" << file_info.relative_path << std::endl;
     }
 
     std::cout << "Summary: " << num_files_ << " files (" << utils::format_data_size(transfer_size_) << ")" << std::endl;
+}
+
+const std::vector<TransferRequest::FileInfo>& TransferRequest::get_file_infos() const {
+    return file_infos_;
+}
+
+uint32_t TransferRequest::get_final_chunk_size() const {
+    return uncompressed_final_chunk_size_;
+}
+
+uint32_t TransferRequest::get_num_chunks() const {
+    return num_chunks_;
 }

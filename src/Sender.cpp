@@ -4,6 +4,7 @@
 
 #include "Sender.h"
 #include "utils.h"
+#include "FileChunker.h"
 
 Sender::Sender(const std::string ip_address_str, const unsigned short port): 
     io_context_(),
@@ -73,4 +74,20 @@ bool Sender::transfer_request_accepted(){
 
 void Sender::send_files(const TransferRequest& transfer_request){
     std::cout << "Sending files..." << std::endl;
+
+    constexpr int QUEUE_CAPACITY = 50;
+
+    BoundedThreadSafeQueue<Chunk> uncompressed_chunk_queue(QUEUE_CAPACITY);
+
+    FileChunker file_chunker;
+
+    std::thread chunker_thread([&](){
+        file_chunker.start(transfer_request, uncompressed_chunk_queue);
+    });
+
+    // TODO implement thread safe logging
+
+
+    // TODO temporary mechanism to keep main thread running
+    while(true){}
 }

@@ -12,33 +12,26 @@ class BoundedThreadSafeQueue{
 
         // Only allowed passing rvalues to force not copying objects, only moving allowed
         void push(T&& elem){
-            // Protect push operation with mutex, will be automatically released after push
             std::unique_lock<std::mutex> lock(mutex_);
-
-            // Wait until the queue is not full
             not_full_.wait(lock, [this](){ return queue_.size() < capacity_; });
-
-            // Push the forwarded elem (which could be lvalue or rvalue)
             queue_.push(std::move(elem));
+            not_empty_.notify_one();
+        }
 
-            // Notify any threads waiting to pop that queue is no longer empty
+        template <typename... Args>
+        void emplace(Args&&... args){
+            std::unique_lock<std::mutex> lock(mutex_);
+            not_full_.wait(lock, [this](){ return queue_.size() < capacity_; });
+            queue_.emplace(std::forward<Args>(args)...);
             not_empty_.notify_one();
         }
 
         T pop(){
-            // Protect pop operation with mutex, will be automatically released after pop
             std::unique_lock<std::mutex> lock(mutex_);
-
-            // Wait until the queue is not empty
             not_empty_.wait(lock, [this](){ return queue_.size() > 0; });
-
-            // Pop from queue
             T elem = std::move(queue_.front());
             queue_.pop();
-
-            // Notify any threads waiting to push that the queue is no longer full
             not_full_.notify_one();
-
             return elem;
         }
 

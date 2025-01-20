@@ -1,3 +1,5 @@
+#ifndef CHUNK_H
+#define CHUNK_H
 
 #include <cstdint>
 #include <vector>
@@ -18,3 +20,5 @@ class Chunk {
         unsigned int sequence_num_;
         std::vector<uint8_t> data_;
 };
+
+#endif

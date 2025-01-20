@@ -16,6 +16,8 @@ class TransferRequest {
         // and sequential access is more efficent with vectors than with maps
         struct FileInfo {
             std::string relative_path;
+
+            // Size in bytes
             uint64_t size;
             FileInfo(const std::string& p, uint64_t s): relative_path(p), size(s) {}
         };
@@ -24,9 +26,12 @@ class TransferRequest {
         static TransferRequest deserialize(const std::vector<uint8_t>& buffer);
         std::vector<uint8_t> serialize() const;
         std::vector<std::filesystem::path> get_file_paths();
-        uint32_t get_chunk_size();
+        uint32_t get_chunk_size() const;
+        uint32_t get_final_chunk_size() const;
+        uint32_t get_num_chunks() const;
 
         void print() const;
+        const std::vector<TransferRequest::FileInfo>& get_file_infos() const;
 
     private:
 
@@ -40,7 +45,7 @@ class TransferRequest {
         uint32_t num_files_;
         uint64_t transfer_size_;
         uint32_t uncompressed_chunk_size_;
-        uint32_t uncompressed_last_chunk_size_;
+        uint32_t uncompressed_final_chunk_size_;
         uint32_t num_chunks_;
         std::vector<TransferRequest::FileInfo> file_infos_;
 };

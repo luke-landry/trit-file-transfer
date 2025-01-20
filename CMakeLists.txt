@@ -24,6 +24,8 @@ add_executable(trit
     src/TransferRequest.cpp
     src/TransferRequest.h
     src/BoundedThreadSafeQueue.h
+    src/Chunk.cpp
+    src/Chunk.h
     src/FileChunker.cpp
     src/FileChunker.h
 )

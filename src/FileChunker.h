@@ -1,3 +1,5 @@
+#ifndef FILE_CHUNKER_H
+#define FILE_CHUNKER_H
 
 #include <vector>
 #include <filesystem>
@@ -5,15 +7,16 @@
 #include "BoundedThreadSafeQueue.h"
 #include "Chunk.h"
 #include "utils.h"
+#include "TransferRequest.h"
 
 class FileChunker {
     public:
-        FileChunker(const std::vector<std::filesystem::path>& file_paths, uint32_t chunk_size);
-        void start(BoundedThreadSafeQueue<Chunk>& out_queue);
-
+        void start(const TransferRequest& transfer_request, BoundedThreadSafeQueue<Chunk>& out_queue);
+        
     private:
-        std::vector<std::filesystem::path> file_paths_;
-        const uint64_t chunk_size_;
+    
 
 
 };
+
+#endif
