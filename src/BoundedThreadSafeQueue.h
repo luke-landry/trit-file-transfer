@@ -4,6 +4,7 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <optional>
 
 template<typename T>
 class BoundedThreadSafeQueue{
@@ -26,9 +27,9 @@ class BoundedThreadSafeQueue{
             not_empty_.notify_one();
         }
 
-        T pop(){
+        std::optional<T> try_pop(){
             std::unique_lock<std::mutex> lock(mutex_);
-            not_empty_.wait(lock, [this](){ return queue_.size() > 0; });
+            if(queue_.empty()){ return std::nullopt; }
             T elem = std::move(queue_.front());
             queue_.pop();
             not_full_.notify_one();

@@ -119,21 +119,21 @@ TransferRequest TransferRequest::deserialize(const std::vector<uint8_t>& buffer)
 /*
     This method serializes the file transfer request based on  the following format
     --------------------------
-    number of files [4 bytes]
-    total transfer size [8 bytes]
-    uncompressed chunk size [4 bytes]
-    uncompressed last chunk size [4 bytes]
-    num chunks [4 bytes]
-    file1 path length [2 bytes]
-    file1 path [variable]
-    file1 size [8 bytes]
-    file2 path length [2 bytes]
-    file2 path [variable]
-    file2 size [8 bytes]
+    [4 bytes] number of files 
+    [8 bytes] total transfer size
+    [4 bytes] uncompressed chunk size
+    [4 bytes] uncompressed last chunk size
+    [4 bytes] num chunks 
+    [2 bytes] file1 path length 
+    [variable] file1 path
+    [8 bytes] file1 size
+    [2 bytes] file2 path length
+    [variable] file2 path
+    [8 bytes] file2 size
     ...
-    fileN path length [2 bytes]
-    fileN path [variable]
-    fileN size [8 bytes]
+    [2 bytes] fileN path length 
+    [variable] fileN path 
+    [8 bytes] fileN size 
 */
 std::vector<uint8_t> TransferRequest::serialize() const{
 
@@ -187,7 +187,7 @@ void TransferRequest::print() const {
     std::cout << "Files: " << std::endl;
 
     for(const auto& file_info : file_infos_){
-        std::cout << "()" << file_info.size << " bytes)\t" << file_info.relative_path << std::endl;
+        std::cout << "(" << file_info.size << " bytes)\t" << file_info.relative_path << std::endl;
     }
 
     std::cout << "Summary: " << num_files_ << " files (" << utils::format_data_size(transfer_size_) << ")" << std::endl;

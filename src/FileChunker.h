@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <filesystem>
+#include <atomic>
 
 #include "BoundedThreadSafeQueue.h"
 #include "Chunk.h"
@@ -11,7 +12,7 @@
 
 class FileChunker {
     public:
-        void start(const TransferRequest& transfer_request, BoundedThreadSafeQueue<Chunk>& out_queue);
+        void start(const TransferRequest& transfer_request, BoundedThreadSafeQueue<Chunk>& out_queue, std::atomic<bool>& file_chunking_done);
         
     private:
     

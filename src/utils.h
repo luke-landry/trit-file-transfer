@@ -24,6 +24,7 @@ namespace utils {
     void print_buffer(std::vector<uint8_t> buffer);
     uint64_t deserialize_uint(std::vector<uint8_t> buffer, uint8_t size);
     std::string format_data_size(uint64_t size_in_bytes);
+    std::string get_timestamp(const std::string& format);
 
     // Template function definitions
 

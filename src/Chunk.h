@@ -8,6 +8,12 @@ class Chunk {
     public:
         Chunk(unsigned int sequence_num, std::vector<uint8_t>&& data);
 
+        // Chunks should never be copied, only moved
+        Chunk(const Chunk&) = delete;
+        Chunk& operator=(const Chunk&) = delete;
+        Chunk(Chunk&& other) noexcept = default;
+        Chunk& operator=(Chunk&& other) noexcept = default;
+
         unsigned int sequence_num();
         const unsigned int sequence_num() const;
 

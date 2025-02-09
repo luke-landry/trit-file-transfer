@@ -5,6 +5,7 @@
 
 #include "Receiver.h"
 #include "utils.h"
+#include "Transfer.h"
 
 #ifdef __linux__
 #include <ifaddrs.h>
@@ -170,4 +171,18 @@ bool Receiver::accept_transfer_request(const TransferRequest& transfer_request){
 
 void Receiver::receive_files(const TransferRequest& transfer_request){
     std::cout << "Receiving files..." << std::endl;
+
+    constexpr int QUEUE_CAPACITY = 50;
+
+    BoundedThreadSafeQueue<Chunk> received_chunks(QUEUE_CAPACITY);
+
+    std::atomic<bool> chunk_reception_done(false);
+
+    Transfer transfer;
+    std::thread receiver_thread([&](){
+        transfer.receive_chunks(socket_, received_chunks, chunk_reception_done, transfer_request.get_num_chunks());
+    });
+
+    receiver_thread.join();
+    std::cout << "Files received, transfer complete!" << std::endl;
 }

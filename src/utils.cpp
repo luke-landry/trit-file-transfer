@@ -2,6 +2,7 @@
 #include <random>
 #include <iomanip>
 #include <cmath>
+#include <chrono>
 #include <asio.hpp>
 
 #include "utils.h"
@@ -161,4 +162,11 @@ std::string utils::format_data_size(uint64_t size_in_bytes){
 
     // Return <unit value> <units>
     return unit_value_oss.str() + units[power_of_1000];
+}
+
+std::string utils::get_timestamp(const std::string& format){
+    time_t  current_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::ostringstream timestamp;
+    timestamp << std::put_time(std::localtime(&current_time), format.c_str());
+    return timestamp.str();
 }

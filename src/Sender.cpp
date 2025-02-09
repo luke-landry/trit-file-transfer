@@ -1,10 +1,13 @@
 
 #include <iostream>
 #include <algorithm>
+#include <thread>
 
 #include "Sender.h"
 #include "utils.h"
+#include "logger.h"
 #include "FileChunker.h"
+#include "Transfer.h"
 
 Sender::Sender(const std::string ip_address_str, const unsigned short port): 
     io_context_(),
@@ -77,17 +80,26 @@ void Sender::send_files(const TransferRequest& transfer_request){
 
     constexpr int QUEUE_CAPACITY = 50;
 
+    // Completion flags
+    std::atomic<bool> file_chunking_done(false);
+
     BoundedThreadSafeQueue<Chunk> uncompressed_chunk_queue(QUEUE_CAPACITY);
 
     FileChunker file_chunker;
-
     std::thread chunker_thread([&](){
-        file_chunker.start(transfer_request, uncompressed_chunk_queue);
+        file_chunker.start(transfer_request, uncompressed_chunk_queue, file_chunking_done);
     });
 
-    // TODO implement thread safe logging
+    // TODO compressor for chunks
 
+    // TODO encryptor for chunks
 
-    // TODO temporary mechanism to keep main thread running
-    while(true){}
+    // TXer for chunks
+    Transfer transfer;
+    std::thread transmission_thread([&](){
+        transfer.send_chunks(socket_, uncompressed_chunk_queue, file_chunking_done);
+    });
+
+    transmission_thread.join();
+    std::cout << "Files sent, transfer complete!" << std::endl;
 }

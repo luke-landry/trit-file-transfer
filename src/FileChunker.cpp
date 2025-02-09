@@ -3,7 +3,7 @@
 
 #include <fstream>
 
-void FileChunker::start(const TransferRequest& transfer_request, BoundedThreadSafeQueue<Chunk>& out_queue){
+void FileChunker::start(const TransferRequest& transfer_request, BoundedThreadSafeQueue<Chunk>& out_queue, std::atomic<bool>& file_chunking_done){
     
     uint32_t sequence_counter = 1;
     uint32_t remaining_buffer_capacity = transfer_request.get_chunk_size();
@@ -15,7 +15,7 @@ void FileChunker::start(const TransferRequest& transfer_request, BoundedThreadSa
         std::filesystem::path file_path = std::filesystem::current_path() / file_info.relative_path;
         uint64_t file_size = std::filesystem::file_size(file_path);
 
-        std::cout << "Chunking file " << "[" << file_size << " bytes]\t" << file_path << std::endl;
+        // std::cout << "Chunking file " << "[" << file_size << " bytes]\t" << file_path << std::endl;
 
         if(file_size != file_info.size){
             throw std::runtime_error("File size mismatch: expected " + std::to_string(file_info.size) + " bytes, file size is " + std::to_string(file_size) + " bytes");
@@ -45,8 +45,8 @@ void FileChunker::start(const TransferRequest& transfer_request, BoundedThreadSa
             // Allocate new buffer if the current one is filled up
             if(remaining_buffer_capacity == 0){
 
-                std::cout << "Chunk " << sequence_counter << "/" << transfer_request.get_num_chunks() << " [" << buffer.size() << " bytes] " << std::endl;
-                utils::print_buffer(buffer);
+                // std::cout << "Chunk " << sequence_counter << "/" << transfer_request.get_num_chunks() << " [" << buffer.size() << " bytes] " << std::endl;
+                //utils::print_buffer(buffer);
 
                 out_queue.emplace(sequence_counter++, std::move(buffer));
 
@@ -61,4 +61,5 @@ void FileChunker::start(const TransferRequest& transfer_request, BoundedThreadSa
         }
     }
     
+    file_chunking_done.store(true);
 }
