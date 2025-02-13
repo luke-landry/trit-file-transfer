@@ -27,6 +27,15 @@ class BoundedThreadSafeQueue{
             not_empty_.notify_one();
         }
 
+        T pop(){
+            std::unique_lock<std::mutex> lock(mutex_);
+            not_empty_.wait(lock, [this](){ return queue_.size() > 0; });
+            T elem = std::move(queue_.front());
+            queue_.pop();
+            not_full_.notify_one();
+            return elem;
+        }
+
         std::optional<T> try_pop(){
             std::unique_lock<std::mutex> lock(mutex_);
             if(queue_.empty()){ return std::nullopt; }

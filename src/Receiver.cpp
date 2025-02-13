@@ -6,6 +6,7 @@
 #include "Receiver.h"
 #include "utils.h"
 #include "Transfer.h"
+#include "FileWriter.h"
 
 #ifdef __linux__
 #include <ifaddrs.h>
@@ -183,6 +184,13 @@ void Receiver::receive_files(const TransferRequest& transfer_request){
         transfer.receive_chunks(socket_, received_chunks, chunk_reception_done, transfer_request.get_num_chunks());
     });
 
+    FileWriter file_writer;
+    std::thread writer_thread([&](){
+        file_writer.start(transfer_request, received_chunks, chunk_reception_done);
+    });
+
     receiver_thread.join();
+    writer_thread.join();
+    
     std::cout << "Files received, transfer complete!" << std::endl;
 }

@@ -28,10 +28,12 @@ add_executable(trit
     src/Chunk.h
     src/FileChunker.cpp
     src/FileChunker.h
-    src/logger.h
     src/logger.cpp
+    src/logger.h
     src/Transfer.cpp
     src/Transfer.h
+    src/FileWriter.cpp
+    src/FileWriter.h
 )
 
 # Include Asio library based on platform

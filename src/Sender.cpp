@@ -100,6 +100,7 @@ void Sender::send_files(const TransferRequest& transfer_request){
         transfer.send_chunks(socket_, uncompressed_chunk_queue, file_chunking_done);
     });
 
+    chunker_thread.join();
     transmission_thread.join();
     std::cout << "Files sent, transfer complete!" << std::endl;
 }

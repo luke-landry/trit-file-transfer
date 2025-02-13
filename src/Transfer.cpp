@@ -42,8 +42,8 @@ void Transfer::receive_chunks(asio::ip::tcp::socket& socket, BoundedThreadSafeQu
         std::vector<uint8_t> buffer(chunk_size);
         asio::read(socket, asio::buffer(buffer.data(), chunk_size));
 
-        std::cout << "Received chunk " << sequence_counter << " of " << num_chunks << " [" << chunk_size << "] bytes" << std::endl;
-        utils::print_buffer(buffer);
+        // std::cout << "Received chunk " << sequence_counter << " of " << num_chunks << " [" << chunk_size << "] bytes" << std::endl;
+        // utils::print_buffer(buffer);
 
         out_queue.emplace(sequence_counter, std::move(buffer));
 

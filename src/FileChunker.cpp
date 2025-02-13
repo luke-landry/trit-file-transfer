@@ -31,7 +31,7 @@ void FileChunker::start(const TransferRequest& transfer_request, BoundedThreadSa
         // Chunks are a specific size, so multiple smaller files could be contained in one chunk
         // and larger files could be made up of multiple chunks
         while(remaining_file_data > 0){
-            uint64_t bytes_to_read = std::min<uint64_t>(remaining_file_data, remaining_buffer_capacity);
+            const uint64_t bytes_to_read = std::min<uint64_t>(remaining_file_data, remaining_buffer_capacity);
             file.read(reinterpret_cast<char*>(buffer.data() + (buffer.size() - remaining_buffer_capacity)), bytes_to_read);
 
             auto bytes_read = file.gcount();
