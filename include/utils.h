@@ -19,7 +19,7 @@ namespace utils {
     // Non-template function declarations
     bool is_valid_ip_address(const std::string& ip);
     bool is_valid_port(const std::string& port);
-    unsigned short generate_random_port();
+    uint16_t generate_random_port();
     std::vector<std::string> string_split(const std::string& str);
     void print_buffer(std::vector<uint8_t> buffer);
     uint64_t deserialize_uint(std::vector<uint8_t> buffer, uint8_t size);

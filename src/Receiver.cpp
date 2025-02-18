@@ -5,8 +5,8 @@
 
 #include "Receiver.h"
 #include "utils.h"
-#include "Transfer.h"
-#include "FileWriter.h"
+#include "TransferManager.h"
+#include "FileManager.h"
 
 #ifdef __linux__
 #include <ifaddrs.h>
@@ -26,14 +26,12 @@ Receiver::Receiver(const unsigned short port):
 
 void Receiver::start_session(){
 
-    // Waits for a connection to be established (blocking)
-    // Using blocking acceptor.accept() because the main thread has no 
-    // concurrent tasks to perform while waiting for a connection
     wait_for_connection();
 
     TransferRequest transfer_request = receive_transfer_request();
-
-    while(!accept_transfer_request(transfer_request)){ transfer_request = receive_transfer_request(); }
+    while(!accept_transfer_request(transfer_request)){
+        transfer_request = receive_transfer_request();
+    }
 
     receive_files(transfer_request);
 }
@@ -42,16 +40,11 @@ void Receiver::start_session(){
 // Queries and returns the private ip address of this device to be used by the sender
 // The first valid address found (ipv4, not loopback, up, running) will be returned 
 std::string Receiver::get_private_ipv4_address(){
-
-    // Raw pointer to first element of linked list of network interface addresses returned by getifaddrs
-    // Not using smart pointers because this struct uses a dedicated function to free its resources (freeifaddrs)
     struct ifaddrs* ifaddr = nullptr;
-
     if(getifaddrs(&ifaddr) == -1){
         throw std::runtime_error("Could not get network interfaces");
     }
 
-    // Iterate through each interface address of interface addresses
     for(struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next){
 
         // Ignore interfaces without an address
@@ -75,9 +68,7 @@ std::string Receiver::get_private_ipv4_address(){
             // Convert ipv4 address to char string
             // where the address binary value buffer is stored in ipv4_address's struct member 'sin_addr'
             inet_ntop(AF_INET, &(ipv4_address->sin_addr), address_chstr_buffer, INET_ADDRSTRLEN);
-
             freeifaddrs(ifaddr);
-
             return std::string(address_chstr_buffer);
         }
     }
@@ -99,13 +90,9 @@ std::string Receiver::get_private_ipv4_address(){
 // Waits for a successful connection to be established
 void Receiver::wait_for_connection(){
     std::string address = get_private_ipv4_address();
-    const int port = acceptor_.local_endpoint().port();
-    std::cout << "Listening for connection at address " << address << " on port " << port << "..." << std::endl;
-
-    // Block until a connection is established
-    // This will throw std::system_error if a connection fails
+    const uint16_t port = acceptor_.local_endpoint().port();
+    std::cout << "Listening for connection at " << address << " on port " << port << "..." << std::endl;
     acceptor_.accept(socket_);
-    
     std::string sender_address = socket_.remote_endpoint().address().to_string();
     std::cout << "Connected to " << sender_address << std::endl;
 }
@@ -134,39 +121,20 @@ void Receiver::wait_for_connection(){
 */
 TransferRequest Receiver::receive_transfer_request(){
     std::cout << "Awaiting file transfer request..." << std::endl;
-
-    // Transfer request buffer size stored as uint64_t (8 bytes long)
     uint64_t transfer_request_buffer_size;
     asio::read(socket_, asio::buffer(&transfer_request_buffer_size, sizeof(transfer_request_buffer_size)));
-
-    std::cout << "Received transfer request size of " << transfer_request_buffer_size << " bytes" << std::endl;
-
     std::vector<uint8_t> transfer_request_buffer(transfer_request_buffer_size);
-
-    std::cout << "Receiving transfer request..." << std::endl;
     asio::read(socket_, asio::buffer(transfer_request_buffer));
-
-    std::cout << "Received transfer request data (" << transfer_request_buffer_size << " bytes):" << std::endl;
-    utils::print_buffer(transfer_request_buffer);
-
     return TransferRequest::deserialize(transfer_request_buffer);
 }
 
 bool Receiver::accept_transfer_request(const TransferRequest& transfer_request){
-
     transfer_request.print();
-
     char choice = utils::input<char>("Accept transfer request? (y/n)", {'y', 'n'});
-
     bool request_accepted = choice == 'y';
-
     uint8_t request_accepted_byte = request_accepted;
-
-    // Send accept/deny response to sender (0 is deny, 1 is accept)
     asio::write(socket_, asio::buffer(&request_accepted_byte, sizeof(request_accepted_byte)));
-
     std::cout << ((request_accepted ? "Transfer accepted" : "Transfer denied")) << std::endl;
-
     return request_accepted;
 }
 
@@ -179,14 +147,14 @@ void Receiver::receive_files(const TransferRequest& transfer_request){
 
     std::atomic<bool> chunk_reception_done(false);
 
-    Transfer transfer;
+    TransferManager chunk_receiver;
     std::thread receiver_thread([&](){
-        transfer.receive_chunks(socket_, received_chunks, chunk_reception_done, transfer_request.get_num_chunks());
+        chunk_receiver.receive_chunks(socket_, received_chunks, chunk_reception_done, transfer_request.get_num_chunks());
     });
 
-    FileWriter file_writer;
+    FileManager file_writer;
     std::thread writer_thread([&](){
-        file_writer.start(transfer_request, received_chunks, chunk_reception_done);
+        file_writer.write_files_from_chunks(transfer_request, received_chunks, chunk_reception_done);
     });
 
     receiver_thread.join();

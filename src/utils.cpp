@@ -40,7 +40,7 @@ bool utils::is_valid_port(const std::string& port_str){
 }
 
 // Randomly generates a non-reserved port number
-unsigned short utils::generate_random_port(){
+uint16_t utils::generate_random_port(){
     std::random_device rd;
     std::mt19937 gen(rd());
 

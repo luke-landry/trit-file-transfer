@@ -178,19 +178,19 @@ uint32_t TransferRequest::get_chunk_size() const{
 }
 
 void TransferRequest::print() const {
-    std::cout << "Transfer Request\n";
-    std::cout << "Number of files: " << num_files_ << "\n";
-    std::cout << "Total transfer size: " << transfer_size_ << " bytes\n";
-    std::cout << "Uncompressed chunk size: " << uncompressed_chunk_size_ << " bytes\n";
-    std::cout << "Uncompressed last chunk size: " << uncompressed_final_chunk_size_ << " bytes\n";
-    std::cout << "Number of chunks: " << num_chunks_ << "\n";
-    std::cout << "Files: " << std::endl;
+    std::cout << "Transfer Request Received\n";
+    // std::cout << "Number of files: " << num_files_ << "\n";
+    // std::cout << "Total transfer size: " << transfer_size_ << " bytes\n";
+    // std::cout << "Uncompressed chunk size: " << uncompressed_chunk_size_ << " bytes\n";
+    // std::cout << "Uncompressed last chunk size: " << uncompressed_final_chunk_size_ << " bytes\n";
+    // std::cout << "Number of chunks: " << num_chunks_ << "\n";
+    // std::cout << "Files: " << std::endl;
 
     for(const auto& file_info : file_infos_){
-        std::cout << "(" << file_info.size << " bytes)\t" << file_info.relative_path << std::endl;
+        std::cout << "\t" << file_info.relative_path << " (" << utils::format_data_size(file_info.size) << ")" << std::endl;
     }
 
-    std::cout << "Summary: " << num_files_ << " files (" << utils::format_data_size(transfer_size_) << ")" << std::endl;
+    std::cout << "Total " << num_files_ << " files (" << utils::format_data_size(transfer_size_) << ")" << std::endl;
 }
 
 const std::vector<TransferRequest::FileInfo>& TransferRequest::get_file_infos() const {

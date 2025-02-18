@@ -9,7 +9,7 @@
 
 class Sender {
     public:
-        Sender(const std::string recipient_ip_address_str, const unsigned short recipient_port);
+        Sender(const std::string recipient_ip_address_str, const uint16_t recipient_port);
         void start_session();
 
     private:
@@ -19,9 +19,8 @@ class Sender {
         StagingArea stagingArea_;
 
         void connect_to_receiver();
-        void stage_files_for_transfer();
-        TransferRequest send_transfer_request();
-        bool transfer_request_accepted();
+        TransferRequest stage_files_for_transfer();
+        bool send_transfer_request(const TransferRequest& transfer_request);
         void send_files(const TransferRequest& transfer_request);
 };
 

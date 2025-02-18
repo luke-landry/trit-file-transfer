@@ -4,7 +4,6 @@
 #include <string>
 
 #include "utils.h"
-#include "logger.h"
 #include "Sender.h"
 #include "Receiver.h"
 
@@ -12,14 +11,12 @@
 int main(int argc, char* argv[]){
 
     if(argc == 1){
-        logger::console(__func__, "Usage: 'trit send <ip> <port>' or 'trit receive'");
-        //std::cout << "Usage: 'trit send <ip> <port>' or 'trit receive'" << std::endl;
+        std::cout << "Usage: 'trit send <ip> <port>' or 'trit receive'" << std::endl;
         return 0;
     }
 
-    const std::vector<std::string> args(argv + 1, argv + argc);
+    std::vector<std::string> args(argv + 1, argv + argc);
     const std::string& mode = args[0];
-
     if(mode == "send"){
 
         if(args.size() != 3){

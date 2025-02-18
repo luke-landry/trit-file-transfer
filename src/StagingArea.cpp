@@ -20,8 +20,6 @@ void StagingArea::stage_files(){
         // First token is action
         action = command_tokens[0];
 
-        std::cout << "Action: " << action << std::endl;
-
         if(action == "stage" || action == "s"){
 
             std::unordered_set<std::filesystem::path> cwd_file_paths;
@@ -70,7 +68,6 @@ std::unordered_set<std::filesystem::path> StagingArea::resolve_file_strs_to_path
     std::unordered_set<std::filesystem::path> resolved_paths;
 
     for(const auto& file_str : file_strs){
-        std::cout << "Processing file string: " << file_str << std::endl;
 
         // Wildcard * means all files recursively from root
         if(file_str == "*"){
@@ -100,26 +97,16 @@ std::unordered_set<std::filesystem::path> StagingArea::resolve_file_strs_to_path
                 }
             }
         } else if((file_str.size() > 1) && (file_str.substr(0, 2) == "*.")){ // Wildcard *.x means all files with .x extension in root
-
-            // Get wildcard extension
             std::string extension = file_str.substr(1);
-            std::cout << "All files with extension: " << extension << std::endl;
-
             for(const auto& file_path : file_paths){
-
                 bool is_at_root_level = (std::filesystem::relative(file_path, staging_root_) == file_path.filename());
-
                 if((is_at_root_level) && (file_path.extension() == extension)){
                     resolved_paths.insert(file_path);
                 }
             }
-
         } else { // Is a direct file or directory name
-
             std::filesystem::path full_path = staging_root_ / file_str;
-
             if(std::filesystem::exists(full_path)){
-
                 // If item exists, add if file, otherwise add all files recursively within the directory
                 if(std::filesystem::is_regular_file(full_path)){
                     resolved_paths.insert(full_path);
@@ -130,17 +117,13 @@ std::unordered_set<std::filesystem::path> StagingArea::resolve_file_strs_to_path
                         }
                     }
                 }
-                
             } else {
                 std::cout << "Warning: " << full_path.string() << " does not exist!" << std::endl;
             }
-
         }
     }
-
     return resolved_paths;
 }
-
 
 void StagingArea::stage(const std::unordered_set<std::filesystem::path>& file_paths){
     for(const auto& path : file_paths){

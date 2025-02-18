@@ -11,29 +11,18 @@ add_compile_definitions(ASIO_STANDALONE)
 # Outputting final executable file into the /bin directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../bin")
 
+include_directories(include)
+
 add_executable(trit
     src/main.cpp
     src/utils.cpp
-    src/utils.h
     src/Sender.cpp
-    src/Sender.h
     src/Receiver.cpp
-    src/Receiver.h
     src/StagingArea.cpp
-    src/StagingArea.h
     src/TransferRequest.cpp
-    src/TransferRequest.h
-    src/BoundedThreadSafeQueue.h
     src/Chunk.cpp
-    src/Chunk.h
-    src/FileChunker.cpp
-    src/FileChunker.h
-    src/logger.cpp
-    src/logger.h
-    src/Transfer.cpp
-    src/Transfer.h
-    src/FileWriter.cpp
-    src/FileWriter.h
+    src/FileManager.cpp
+    src/TransferManager.cpp
 )
 
 # Include Asio library based on platform

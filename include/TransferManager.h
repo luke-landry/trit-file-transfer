@@ -7,7 +7,7 @@
 #include "BoundedThreadSafeQueue.h"
 #include "Chunk.h"
 
-class Transfer {
+class TransferManager {
     public:
         void send_chunks(
             asio::ip::tcp::socket& socket,
