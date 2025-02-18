@@ -62,7 +62,7 @@ void Sender::send_files(const TransferRequest& transfer_request){
     // Completion flags
     std::atomic<bool> file_chunking_done(false);
 
-    BoundedThreadSafeQueue<Chunk> uncompressed_chunk_queue(QUEUE_CAPACITY);
+    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> uncompressed_chunk_queue(QUEUE_CAPACITY);
 
     FileManager file_chunker;
     std::thread chunker_thread([&](){

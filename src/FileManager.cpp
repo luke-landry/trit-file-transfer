@@ -3,7 +3,10 @@
 
 #include <fstream>
 
-void FileManager::read_files_into_chunks(const TransferRequest& transfer_request, BoundedThreadSafeQueue<Chunk>& out_queue, std::atomic<bool>& file_chunking_done){
+void FileManager::read_files_into_chunks(
+    const TransferRequest& transfer_request,
+    BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& out_queue,
+    std::atomic<bool>& file_chunking_done){
     
     uint32_t sequence_counter = 1;
     uint32_t remaining_buffer_capacity = transfer_request.get_chunk_size();
@@ -44,11 +47,7 @@ void FileManager::read_files_into_chunks(const TransferRequest& transfer_request
 
             // Allocate new buffer if the current one is filled up
             if(remaining_buffer_capacity == 0){
-
-                // std::cout << "Chunk " << sequence_counter << "/" << transfer_request.get_num_chunks() << " [" << buffer.size() << " bytes] " << std::endl;
-                //utils::print_buffer(buffer);
-
-                out_queue.emplace(sequence_counter++, std::move(buffer));
+                out_queue.push(std::make_unique<Chunk>(sequence_counter++, std::move(buffer)));
 
                 if (sequence_counter == transfer_request.get_num_chunks()) {
                     buffer.resize(transfer_request.get_final_chunk_size());
@@ -65,13 +64,17 @@ void FileManager::read_files_into_chunks(const TransferRequest& transfer_request
 }
 
 
-void FileManager::write_files_from_chunks(const TransferRequest& transfer_request, BoundedThreadSafeQueue<Chunk>& in_queue, std::atomic<bool>& chunk_processing_done){
+void FileManager::write_files_from_chunks(
+    const TransferRequest& transfer_request,
+    BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& in_queue,
+    std::atomic<bool>& chunk_processing_done){
+
     uint32_t sequence_counter = 1;
 
     // Blocking thread until first chunk received
-    Chunk chunk = in_queue.pop();
+    std::unique_ptr<Chunk> chunk_ptr = in_queue.pop();
 
-    uint32_t remaining_chunk_data = chunk.size();
+    uint32_t remaining_chunk_data = chunk_ptr->size();
     size_t chunk_offset = 0;
 
     for(const auto& file_info : transfer_request.get_file_infos()){
@@ -84,7 +87,7 @@ void FileManager::write_files_from_chunks(const TransferRequest& transfer_reques
 
         while(remaining_file_data > 0){
             const int64_t bytes_to_write = std::min<uint64_t>(remaining_file_data, remaining_chunk_data);
-            file.write(reinterpret_cast<char*>(chunk.data() + chunk_offset), bytes_to_write);
+            file.write(reinterpret_cast<char*>(chunk_ptr->data() + chunk_offset), bytes_to_write);
 
             if(file.fail()){
                 throw std::runtime_error("Failed to write to file " + abs_path.string());
@@ -101,8 +104,8 @@ void FileManager::write_files_from_chunks(const TransferRequest& transfer_reques
                     break;
                 }
 
-                chunk = in_queue.pop();
-                remaining_chunk_data = chunk.size();
+                chunk_ptr = in_queue.pop();
+                remaining_chunk_data = chunk_ptr->size();
                 chunk_offset = 0;
             }
         }

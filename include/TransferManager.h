@@ -11,11 +11,11 @@ class TransferManager {
     public:
         void send_chunks(
             asio::ip::tcp::socket& socket,
-            BoundedThreadSafeQueue<Chunk>& in_queue,
+            BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& in_queue,
             std::atomic<bool>& chunk_processing_done);
 
         void receive_chunks(asio::ip::tcp::socket& socket,
-            BoundedThreadSafeQueue<Chunk>& out_queue,
+            BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& out_queue,
             std::atomic<bool>& rx_done,
             uint32_t num_chunks);
 };

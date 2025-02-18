@@ -143,7 +143,7 @@ void Receiver::receive_files(const TransferRequest& transfer_request){
 
     constexpr int QUEUE_CAPACITY = 50;
 
-    BoundedThreadSafeQueue<Chunk> received_chunks(QUEUE_CAPACITY);
+    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> received_chunks(QUEUE_CAPACITY);
 
     std::atomic<bool> chunk_reception_done(false);
 
