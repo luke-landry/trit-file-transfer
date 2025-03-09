@@ -52,7 +52,7 @@ int main(int argc, char* argv[]){
     } else if(mode == "receive"){
 
         // Using randomly generated unreserved port for receiver
-        unsigned short port = utils::generate_random_port();
+        uint16_t port = utils::generate_random_port();
 
         if(args.size() != 1){
             std::cout << "Receive mode takes no parameters: trit receive" << std::endl;

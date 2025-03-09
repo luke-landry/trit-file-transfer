@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "TransferManager.h"
 #include "FileManager.h"
+#include "ProgressTracker.h"
 
 #ifdef __linux__
 #include <ifaddrs.h>
@@ -19,7 +20,7 @@
 // TODO Windows specific includes
 #endif
 
-Receiver::Receiver(const unsigned short port):
+Receiver::Receiver(uint16_t port):
     io_context_(),
     socket_(io_context_),
     acceptor_(io_context_, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {};
@@ -146,19 +147,31 @@ void Receiver::receive_files(const TransferRequest& transfer_request){
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>> received_chunks(QUEUE_CAPACITY);
 
     std::atomic<bool> chunk_reception_done(false);
+    std::atomic<uint32_t> chunks_written(0);
 
     TransferManager chunk_receiver;
     std::thread receiver_thread([&](){
         chunk_receiver.receive_chunks(socket_, received_chunks, chunk_reception_done, transfer_request.get_num_chunks());
     });
 
+    // TODO decompressor for chunks
+
+    // TODO decryptor for chunks
+
     FileManager file_writer;
     std::thread writer_thread([&](){
-        file_writer.write_files_from_chunks(transfer_request, received_chunks, chunk_reception_done);
+        file_writer.write_files_from_chunks(transfer_request, received_chunks, chunk_reception_done, chunks_written);
+    });
+
+    ProgressTracker progress_tracker("Chunks written", transfer_request.get_num_chunks());
+    std::thread progress_thread([&](){
+        progress_tracker.start(chunks_written);
     });
 
     receiver_thread.join();
     writer_thread.join();
+    progress_thread.join();
     
     std::cout << "Files received, transfer complete!" << std::endl;
+    std::cout << "Last chunk should have been (seq#) " << transfer_request.get_num_chunks() << std::endl;
 }

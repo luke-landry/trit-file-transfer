@@ -20,7 +20,8 @@ class FileManager {
         void write_files_from_chunks(
             const TransferRequest& transfer_request,
             BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& in_queue,
-            std::atomic<bool>& chunk_processing_done);
+            std::atomic<bool>& chunk_processing_done,
+            std::atomic<uint32_t>& chunks_written);
 };
 
 #endif

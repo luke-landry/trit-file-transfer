@@ -14,7 +14,8 @@ Chunk transfer protocol:
 void TransferManager::send_chunks(
     asio::ip::tcp::socket& socket,
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& in_queue,
-    std::atomic<bool>& chunk_processing_done){
+    std::atomic<bool>& chunk_processing_done,
+    std::atomic<uint32_t>& chunks_sent){
 
     while(true){
         std::optional<std::unique_ptr<Chunk>> chunk_ptr_opt = in_queue.try_pop();
@@ -26,6 +27,8 @@ void TransferManager::send_chunks(
             uint16_t chunk_size = static_cast<uint16_t>(chunk_ptr->size());
             asio::write(socket, asio::buffer(&chunk_size, sizeof(chunk_size)));
             asio::write(socket, asio::buffer(chunk_ptr->data(), chunk_size));
+            // std::cout << "Sent chunk (seq#) " << chunk_ptr->sequence_num() << " (" << chunk_ptr->size() << " B)" << std::endl;
+            chunks_sent++;
         } else if (chunk_processing_done.load()){
             break;
         }

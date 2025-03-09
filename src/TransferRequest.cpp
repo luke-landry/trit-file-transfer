@@ -179,12 +179,13 @@ uint32_t TransferRequest::get_chunk_size() const{
 
 void TransferRequest::print() const {
     std::cout << "Transfer Request Received\n";
-    // std::cout << "Number of files: " << num_files_ << "\n";
-    // std::cout << "Total transfer size: " << transfer_size_ << " bytes\n";
-    // std::cout << "Uncompressed chunk size: " << uncompressed_chunk_size_ << " bytes\n";
-    // std::cout << "Uncompressed last chunk size: " << uncompressed_final_chunk_size_ << " bytes\n";
-    // std::cout << "Number of chunks: " << num_chunks_ << "\n";
-    // std::cout << "Files: " << std::endl;
+
+    // Debug info
+    std::cout << "Number of files: " << num_files_ << "\n";
+    std::cout << "Total transfer size: " << transfer_size_ << " bytes\n";
+    std::cout << "Uncompressed chunk size: " << uncompressed_chunk_size_ << " bytes\n";
+    std::cout << "Uncompressed last chunk size: " << uncompressed_final_chunk_size_ << " bytes\n";
+    std::cout << "Number of chunks: " << num_chunks_ << "\n";
 
     for(const auto& file_info : file_infos_){
         std::cout << "\t" << file_info.relative_path << " (" << utils::format_data_size(file_info.size) << ")" << std::endl;

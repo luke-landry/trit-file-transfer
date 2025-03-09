@@ -9,7 +9,7 @@
 
 class Receiver {
     public:
-        Receiver(const unsigned short port);
+        Receiver(uint16_t port);
         void start_session();
 
     private:

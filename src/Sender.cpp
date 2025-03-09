@@ -59,8 +59,9 @@ void Sender::send_files(const TransferRequest& transfer_request){
 
     constexpr int QUEUE_CAPACITY = 50;
 
-    // Completion flags
+    // Completion flags and progress
     std::atomic<bool> file_chunking_done(false);
+    std::atomic<uint32_t> chunks_sent(0);
 
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>> uncompressed_chunk_queue(QUEUE_CAPACITY);
 
@@ -75,11 +76,18 @@ void Sender::send_files(const TransferRequest& transfer_request){
 
     TransferManager chunk_sender;
     std::thread transmission_thread([&](){
-        chunk_sender.send_chunks(socket_, uncompressed_chunk_queue, file_chunking_done);
+        chunk_sender.send_chunks(socket_, uncompressed_chunk_queue, file_chunking_done, chunks_sent);
+    });
+
+    ProgressTracker<uint32_t> progress_tracker("Chunks sent", transfer_request.get_num_chunks());
+    std::thread progress_thread([&](){
+        progress_tracker.start(chunks_sent);
     });
 
     chunker_thread.join();
     transmission_thread.join();
+    progress_thread.join();
 
     std::cout << "Files sent, transfer complete!" << std::endl;
+    std::cout << "Last chunk should have been (seq#) " << transfer_request.get_num_chunks() << std::endl;
 }
