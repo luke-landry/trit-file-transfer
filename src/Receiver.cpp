@@ -144,13 +144,10 @@ void Receiver::receive_files(const TransferRequest& transfer_request){
     std::cout << "Receiving files..." << std::endl;
     auto start_time = std::chrono::system_clock::now();
 
-    uint32_t chunk_size = transfer_request.get_chunk_size();
-    uint32_t last_chunk_size = transfer_request.get_final_chunk_size();
     uint32_t num_chunks = transfer_request.get_num_chunks();
 
     constexpr int QUEUE_CAPACITY = 50;
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>> received_chunk_queue(QUEUE_CAPACITY);
-    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> decompressed_chunk_queue(QUEUE_CAPACITY);
 
     std::atomic<bool> chunk_reception_done(false);
     std::atomic<bool> decompression_done(false);
@@ -166,23 +163,11 @@ void Receiver::receive_files(const TransferRequest& transfer_request){
         );
     });
 
-    // TODO use thread pool for decompression and decryption
-    // Temporarily using single thread for testing
-    CompressionManager chunk_decompressor(chunk_size, last_chunk_size);
-    std::thread decompressor_thread([&](){
-        chunk_decompressor.decompress_chunks(
-            received_chunk_queue,
-            chunk_reception_done,
-            decompressed_chunk_queue,
-            decompression_done
-        );
-    });
-
     FileManager file_writer;
     std::thread writer_thread([&](){
         file_writer.write_files_from_chunks(transfer_request,
-            decompressed_chunk_queue,
-            decompression_done,
+            received_chunk_queue,
+            chunk_reception_done,
             chunks_written
         );
     });
@@ -193,7 +178,6 @@ void Receiver::receive_files(const TransferRequest& transfer_request){
     });
 
     receiver_thread.join();
-    decompressor_thread.join();
     writer_thread.join();
     progress_thread.join();
 

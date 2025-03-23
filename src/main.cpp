@@ -53,6 +53,9 @@ int main(int argc, char* argv[]){
 
         // Using randomly generated unreserved port for receiver
         uint16_t port = utils::generate_random_port();
+        while(!utils::local_port_available(port)){
+            port = utils::generate_random_port();
+        }
 
         if(args.size() != 1){
             std::cout << "Receive mode takes no parameters: trit receive" << std::endl;

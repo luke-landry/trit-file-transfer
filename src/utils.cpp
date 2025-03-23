@@ -50,6 +50,17 @@ uint16_t utils::generate_random_port(){
     return distribution(gen);
 }
 
+bool utils::local_port_available(uint16_t port){
+    asio::io_context io_context;
+    asio::error_code ec;
+    asio::ip::tcp::acceptor acceptor(io_context);
+    acceptor.open(asio::ip::tcp::v4(), ec);
+    if(ec){ return false; }
+    acceptor.bind(asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port), ec);
+    if(ec){ return false; }
+    return true;
+}
+
 // Retuns a vector of strings delimited by whitespace from the given string
 std::vector<std::string> utils::string_split(const std::string& str){
     std::istringstream iss(str);
@@ -125,6 +136,7 @@ std::vector<uint8_t>::const_iterator utils::deserialize<std::string>(const std::
     size_t string_size = out_value.size();
     auto buffer_distance = end - it;
 
+    if (buffer_distance < 0) { throw std::runtime_error("Invalid iterator range (end before it)"); }
     if(buffer_distance < string_size){ throw std::runtime_error("Invalid buffer size"); }
 
     // Copy bytes of buffer into string

@@ -12,7 +12,7 @@ void StagingArea::stage_files(){
     std::cout << "Stage files for transfer (enter 'help' for commands)" << std::endl;
     
     std::string action;
-    while(action != "transfer"  && action != "t"){
+    while(true){
 
         // Get user command and split into command tokens
         std::vector<std::string> command_tokens = utils::string_split(utils::input<std::string>());
@@ -51,8 +51,14 @@ void StagingArea::stage_files(){
         
         } else if (action == "help" || action == "h"){
             help();
-
-        } else if (action != "transfer" && action != "t"){
+        }else if (action == "transfer" || action == "t"){
+            if(staged_file_paths_.size() > 0){
+                break;
+            }
+            std::cout << "You must stage at least one file to be transferred first" << std::endl;
+        } else if (action == "cancel" || action == "c"){
+            std::cout << "Transfer cancelled" << std::endl;
+        } else {
             std::cout << "Unknown command '" << action << "'" << std::endl;
         }
     }
@@ -163,5 +169,5 @@ void StagingArea::help(){
     std::cout << "List staged files: list\n";
     std::cout << "Display commands: help\n";
     std::cout << "Send transfer request: transfer\n";
-    std::cout << "The stage, unstage, list, help, and transfer commands can also be abbrevated as s, u, l, h, t, respectively" << std::endl;
+    std::cout << "The stage, unstage, list, help, transfer, and cancel commands can also be abbrevated as s, u, l, h, t, c, respectively" << std::endl;
 }

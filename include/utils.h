@@ -14,12 +14,13 @@
 namespace utils {
 
     // Shared constants
-    constexpr uint32_t MAX_UNCOMPRESSED_CHUNK_SIZE = 4096;
+    constexpr uint32_t MAX_UNCOMPRESSED_CHUNK_SIZE = 8192;
 
     // Non-template function declarations
     bool is_valid_ip_address(const std::string& ip);
     bool is_valid_port(const std::string& port);
     uint16_t generate_random_port();
+    bool local_port_available(uint16_t port);
     std::vector<std::string> string_split(const std::string& str);
     void print_buffer(std::vector<uint8_t> buffer);
     uint64_t deserialize_uint(std::vector<uint8_t> buffer, uint8_t size);
@@ -86,18 +87,18 @@ namespace utils {
     template<typename T>
     std::vector<uint8_t>::const_iterator deserialize(const std::vector<uint8_t>::const_iterator it, const std::vector<uint8_t>::const_iterator end, T& out_value){
 
-        // Only allow integral types (integer based types)
         static_assert(std::is_trivially_copyable_v<T>, "T must be trivially copyable to be deserialized properly");
 
-        size_t int_size = sizeof(T);
+        size_t T_size = sizeof(T);
         auto buffer_distance = end - it;
 
-        if(buffer_distance < int_size){ throw std::runtime_error("Invalid buffer size"); }
+        if (buffer_distance < 0) { throw std::runtime_error("Invalid iterator range (end before it)"); }
+        if(buffer_distance < T_size){ throw std::runtime_error("Invalid buffer size"); }
 
         // Vectors store elements contiguously, so its safe to use pointers to dereferenced iterator values for memcpy
-        std::memcpy(&out_value, &(*it), int_size);
+        std::memcpy(&out_value, &(*it), T_size);
 
-        return it + int_size;
+        return it + T_size;
     }
 
     template<>

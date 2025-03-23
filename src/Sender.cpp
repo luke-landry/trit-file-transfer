@@ -41,7 +41,7 @@ TransferRequest Sender::stage_files_for_transfer(){
 }
 
 bool Sender::send_transfer_request(const TransferRequest& transfer_request){
-    // Serialize and then send transfer request to receivevr
+    // Serialize and then send transfer request to receiver
     std::vector<uint8_t> transfer_request_buffer = transfer_request.serialize();
     uint64_t transfer_request_buffer_size = transfer_request_buffer.size();
     asio::write(socket_, asio::buffer(&transfer_request_buffer_size, sizeof(transfer_request_buffer_size)));
@@ -60,13 +60,10 @@ void Sender::send_files(const TransferRequest& transfer_request){
     std::cout << "Sending files..." << std::endl;
     auto start_time = std::chrono::system_clock::now();
 
-    uint32_t chunk_size = transfer_request.get_chunk_size();
-    uint32_t last_chunk_size = transfer_request.get_final_chunk_size();
     uint32_t num_chunks = transfer_request.get_num_chunks();
 
     constexpr int QUEUE_CAPACITY = 50;
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>> uncompressed_chunk_queue(QUEUE_CAPACITY);
-    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> compressed_chunk_queue(QUEUE_CAPACITY);
 
     // Completion flags and progress
     std::atomic<bool> file_chunking_done(false);
@@ -83,25 +80,14 @@ void Sender::send_files(const TransferRequest& transfer_request){
         );
     });
 
-    // TODO use thread pool for compression and encryption
-    // TODO implement optional compression option in transfer request cli
-    // Temporarily using single thread for testing
-    CompressionManager chunk_compressor(chunk_size, last_chunk_size);
-    std::thread compressor_thread([&](){
-        chunk_compressor.compress_chunks(
-            uncompressed_chunk_queue,
-            file_chunking_done,
-            compressed_chunk_queue,
-            compression_done
-        );
-    });
+    // TODO reintroduce compression stage, refactor with "pipeline" design
 
     TransferManager chunk_sender;
     std::thread transmission_thread([&](){
         chunk_sender.send_chunks(
             socket_,
-            compressed_chunk_queue,
-            compression_done,
+            uncompressed_chunk_queue,
+            file_chunking_done,
             chunks_sent
         );
     });
@@ -112,7 +98,6 @@ void Sender::send_files(const TransferRequest& transfer_request){
     });
 
     chunker_thread.join();
-    compressor_thread.join();
     transmission_thread.join();
     progress_thread.join();
 
