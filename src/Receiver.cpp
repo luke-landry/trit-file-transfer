@@ -8,6 +8,7 @@
 #include "TransferManager.h"
 #include "FileManager.h"
 #include "ProgressTracker.h"
+#include "CompressionManager.h"
 
 #ifdef __linux__
 #include <ifaddrs.h>
@@ -141,37 +142,65 @@ bool Receiver::accept_transfer_request(const TransferRequest& transfer_request){
 
 void Receiver::receive_files(const TransferRequest& transfer_request){
     std::cout << "Receiving files..." << std::endl;
+    auto start_time = std::chrono::system_clock::now();
+
+    uint32_t chunk_size = transfer_request.get_chunk_size();
+    uint32_t last_chunk_size = transfer_request.get_final_chunk_size();
+    uint32_t num_chunks = transfer_request.get_num_chunks();
 
     constexpr int QUEUE_CAPACITY = 50;
-
-    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> received_chunks(QUEUE_CAPACITY);
+    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> received_chunk_queue(QUEUE_CAPACITY);
+    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> decompressed_chunk_queue(QUEUE_CAPACITY);
 
     std::atomic<bool> chunk_reception_done(false);
+    std::atomic<bool> decompression_done(false);
     std::atomic<uint32_t> chunks_written(0);
 
     TransferManager chunk_receiver;
     std::thread receiver_thread([&](){
-        chunk_receiver.receive_chunks(socket_, received_chunks, chunk_reception_done, transfer_request.get_num_chunks());
+        chunk_receiver.receive_chunks(
+            socket_,
+            received_chunk_queue,
+            chunk_reception_done,
+            transfer_request.get_num_chunks()
+        );
     });
 
-    // TODO decompressor for chunks
-
-    // TODO decryptor for chunks
+    // TODO use thread pool for decompression and decryption
+    // Temporarily using single thread for testing
+    CompressionManager chunk_decompressor(chunk_size, last_chunk_size);
+    std::thread decompressor_thread([&](){
+        chunk_decompressor.decompress_chunks(
+            received_chunk_queue,
+            chunk_reception_done,
+            decompressed_chunk_queue,
+            decompression_done
+        );
+    });
 
     FileManager file_writer;
     std::thread writer_thread([&](){
-        file_writer.write_files_from_chunks(transfer_request, received_chunks, chunk_reception_done, chunks_written);
+        file_writer.write_files_from_chunks(transfer_request,
+            decompressed_chunk_queue,
+            decompression_done,
+            chunks_written
+        );
     });
 
-    ProgressTracker progress_tracker("Chunks written", transfer_request.get_num_chunks());
+    ProgressTracker progress_tracker("Chunks written", num_chunks);
     std::thread progress_thread([&](){
         progress_tracker.start(chunks_written);
     });
 
     receiver_thread.join();
+    decompressor_thread.join();
     writer_thread.join();
     progress_thread.join();
+
+    auto end_time = std::chrono::system_clock::now();
+    auto time_elapsed = std::chrono::duration<double>(end_time-start_time);
+    auto seconds_elapsed = time_elapsed.count();
     
     std::cout << "Files received, transfer complete!" << std::endl;
-    std::cout << "Last chunk should have been (seq#) " << transfer_request.get_num_chunks() << std::endl;
+    std::cout << "Time elapsed: " << seconds_elapsed << "s" << std::endl;
 }

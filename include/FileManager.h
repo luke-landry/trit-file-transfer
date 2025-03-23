@@ -14,13 +14,13 @@ class FileManager {
     public:
         void read_files_into_chunks(
             const TransferRequest& transfer_request,
-            BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& out_queue,
-            std::atomic<bool>& file_chunking_done);
+            BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& output_queue,
+            std::atomic<bool>& output_done);
 
         void write_files_from_chunks(
             const TransferRequest& transfer_request,
-            BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& in_queue,
-            std::atomic<bool>& chunk_processing_done,
+            BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& input_queue,
+            std::atomic<bool>& input_done,
             std::atomic<uint32_t>& chunks_written);
 };
 

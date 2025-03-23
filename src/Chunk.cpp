@@ -1,14 +1,31 @@
 
 #include "Chunk.h"
 
-Chunk::Chunk(unsigned int sequence_num, std::vector<uint8_t>&& data): sequence_num_(sequence_num), data_(std::move(data)) {};
+Chunk::Chunk(
+    uint64_t sequence_num,
+    std::vector<uint8_t>&& data):
+    sequence_num_(sequence_num),
+    compressed_(false),
+    original_size_(data.size()),
+    data_(std::move(data)) {};
 
-unsigned int Chunk::sequence_num(){ return sequence_num_; }
+Chunk::Chunk(
+    uint64_t sequence_num,
+    std::vector<uint8_t>&& data,
+    uint16_t original_size):
+    sequence_num_(sequence_num),
+    compressed_(true),
+    original_size_(original_size),
+    data_(std::move(data)) {};
 
-const unsigned int Chunk::sequence_num() const{ return sequence_num_; }
+uint64_t Chunk::sequence_num(){ return sequence_num_; }
 
-uint8_t* Chunk::data() { return data_.data(); }
+const uint64_t Chunk::sequence_num() const{ return sequence_num_; }
 
 const uint8_t* Chunk::data() const { return data_.data(); }
 
-std::size_t Chunk::size() const { return data_.size(); }
+uint16_t Chunk::size() const { return static_cast<uint16_t>(data_.size()); }
+
+bool Chunk::compressed() const { return compressed_; }
+
+uint16_t Chunk::original_size() const { return original_size_; }

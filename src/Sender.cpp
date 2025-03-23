@@ -2,12 +2,14 @@
 #include <iostream>
 #include <algorithm>
 #include <thread>
+#include <chrono>
 
 #include "Sender.h"
 #include "utils.h"
 #include "FileManager.h"
 #include "TransferManager.h"
 #include "ProgressTracker.h"
+#include "CompressionManager.h"
 
 Sender::Sender(const std::string ip_address_str, const uint16_t port): 
     io_context_(),
@@ -56,38 +58,68 @@ bool Sender::send_transfer_request(const TransferRequest& transfer_request){
 
 void Sender::send_files(const TransferRequest& transfer_request){
     std::cout << "Sending files..." << std::endl;
+    auto start_time = std::chrono::system_clock::now();
+
+    uint32_t chunk_size = transfer_request.get_chunk_size();
+    uint32_t last_chunk_size = transfer_request.get_final_chunk_size();
+    uint32_t num_chunks = transfer_request.get_num_chunks();
 
     constexpr int QUEUE_CAPACITY = 50;
+    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> uncompressed_chunk_queue(QUEUE_CAPACITY);
+    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> compressed_chunk_queue(QUEUE_CAPACITY);
 
     // Completion flags and progress
     std::atomic<bool> file_chunking_done(false);
+    std::atomic<bool> compression_done(false);
     std::atomic<uint32_t> chunks_sent(0);
 
-    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> uncompressed_chunk_queue(QUEUE_CAPACITY);
-
+    
     FileManager file_chunker;
     std::thread chunker_thread([&](){
-        file_chunker.read_files_into_chunks(transfer_request, uncompressed_chunk_queue, file_chunking_done);
+        file_chunker.read_files_into_chunks(
+            transfer_request,
+            uncompressed_chunk_queue,
+            file_chunking_done
+        );
     });
 
-    // TODO compressor for chunks
-
-    // TODO encryptor for chunks
+    // TODO use thread pool for compression and encryption
+    // TODO implement optional compression option in transfer request cli
+    // Temporarily using single thread for testing
+    CompressionManager chunk_compressor(chunk_size, last_chunk_size);
+    std::thread compressor_thread([&](){
+        chunk_compressor.compress_chunks(
+            uncompressed_chunk_queue,
+            file_chunking_done,
+            compressed_chunk_queue,
+            compression_done
+        );
+    });
 
     TransferManager chunk_sender;
     std::thread transmission_thread([&](){
-        chunk_sender.send_chunks(socket_, uncompressed_chunk_queue, file_chunking_done, chunks_sent);
+        chunk_sender.send_chunks(
+            socket_,
+            compressed_chunk_queue,
+            compression_done,
+            chunks_sent
+        );
     });
 
-    ProgressTracker<uint32_t> progress_tracker("Chunks sent", transfer_request.get_num_chunks());
+    ProgressTracker<uint32_t> progress_tracker("Chunks sent", num_chunks);
     std::thread progress_thread([&](){
         progress_tracker.start(chunks_sent);
     });
 
     chunker_thread.join();
+    compressor_thread.join();
     transmission_thread.join();
     progress_thread.join();
 
+    auto end_time = std::chrono::system_clock::now();
+    auto time_elapsed = std::chrono::duration<double>(end_time-start_time);
+    auto seconds_elapsed = time_elapsed.count();
+
     std::cout << "Files sent, transfer complete!" << std::endl;
-    std::cout << "Last chunk should have been (seq#) " << transfer_request.get_num_chunks() << std::endl;
+    std::cout << "Time elapsed: " << seconds_elapsed << "s" << std::endl;
 }
