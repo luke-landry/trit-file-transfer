@@ -17,10 +17,10 @@ find_package(ZLIB REQUIRED)
 
 add_executable(trit
     src/main.cpp
+    src/staging.cpp
     src/utils.cpp
     src/Sender.cpp
     src/Receiver.cpp
-    src/StagingArea.cpp
     src/TransferRequest.cpp
     src/Chunk.cpp
     src/FileManager.cpp

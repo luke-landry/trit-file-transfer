@@ -4,6 +4,9 @@
 #include <cmath>
 #include <chrono>
 #include <asio.hpp>
+#include <mutex>
+#include <filesystem>
+#include <fstream>
 
 #include "utils.h"
 
@@ -181,4 +184,37 @@ std::string utils::get_timestamp(const std::string& format){
     std::ostringstream timestamp;
     timestamp << std::put_time(std::localtime(&current_time), format.c_str());
     return timestamp.str();
+}
+
+void utils::log(const std::string& message) {
+    static const std::filesystem::path log_path = 
+        std::filesystem::temp_directory_path() / "trit" / "log.txt";
+    static std::ofstream ofs;
+    static std::mutex mutex;
+    std::lock_guard<std::mutex> lock(mutex);
+
+    if(!ofs.is_open()){
+        std::filesystem::create_directories(log_path.parent_path());
+        ofs.open(log_path, std::ios::trunc);
+        if(!ofs){
+            std::cerr << "Failed to open log file at " << log_path << "\n";
+            return;
+        }
+    }
+
+    ofs << "[" << utils::get_timestamp("%T") << "] " << message << std::endl;
+}
+
+std::filesystem::path utils::relative_to_cwd(const std::filesystem::path& path){
+    static auto cwd = std::filesystem::current_path();
+    return std::filesystem::relative(path, cwd);
+}
+
+std::unordered_set<std::filesystem::path> utils::relative_to_cwd(const std::unordered_set<std::filesystem::path>& paths){
+    std::unordered_set<std::filesystem::path> rel_paths;
+    rel_paths.reserve(paths.size());
+    for(const auto& path: paths){
+        rel_paths.insert(utils::relative_to_cwd(path));
+    }
+    return rel_paths;
 }

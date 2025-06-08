@@ -17,10 +17,6 @@
 #include <arpa/inet.h>
 #endif
 
-#ifdef _WIN32
-// TODO Windows specific includes
-#endif
-
 Receiver::Receiver(uint16_t port):
     io_context_(),
     socket_(io_context_),
@@ -38,7 +34,6 @@ void Receiver::start_session(){
     receive_files(transfer_request);
 }
 
-#ifdef __linux__
 // Queries and returns the private ip address of this device to be used by the sender
 // The first valid address found (ipv4, not loopback, up, running) will be returned 
 std::string Receiver::get_private_ipv4_address(){
@@ -79,18 +74,10 @@ std::string Receiver::get_private_ipv4_address(){
     freeifaddrs(ifaddr);
     throw std::runtime_error("No valid IP address found");
 }
-#endif
-
-#ifdef _WIN32
-// Queries and returns the private ipv4 address of this device to be used by the sender
-std::string Receiver::get_private_ipv4_address(){
-    // TODO Windows specific ip retrieval
-}
-#endif
-
 
 // Waits for a successful connection to be established
 void Receiver::wait_for_connection(){
+    utils::log("waiting for connection from sender");
     std::string address = get_private_ipv4_address();
     const uint16_t port = acceptor_.local_endpoint().port();
     std::cout << "Listening for connection at " << address << " on port " << port << "..." << std::endl;

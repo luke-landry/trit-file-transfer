@@ -7,8 +7,11 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
-#include <bit>
 #include <limits>
+#include <filesystem>
+#include <unordered_set>
+
+#define LOG(msg) utils::log(std::string(__FUNCTION__) + ": " + std::string(msg))
 
 // Using namespace instead of class to group utility functions since they are stateless and no data is shared between them
 namespace utils {
@@ -25,7 +28,11 @@ namespace utils {
     void print_buffer(std::vector<uint8_t> buffer);
     uint64_t deserialize_uint(std::vector<uint8_t> buffer, uint8_t size);
     std::string format_data_size(uint64_t size_in_bytes);
+    // format follows std::put_time format string
     std::string get_timestamp(const std::string& format);
+    void log(const std::string& message);
+    std::filesystem::path relative_to_cwd(const std::filesystem::path& path);
+    std::unordered_set<std::filesystem::path> relative_to_cwd(const std::unordered_set<std::filesystem::path>& paths);
 
     // Template function definitions
 

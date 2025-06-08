@@ -10,19 +10,20 @@
 #include "TransferManager.h"
 #include "ProgressTracker.h"
 #include "CompressionManager.h"
+#include "staging.h"
 
 Sender::Sender(const std::string ip_address_str, const uint16_t port): 
     io_context_(),
     receiver_endpoint_(asio::ip::address::from_string(ip_address_str), port),
-    socket_(io_context_),
-    stagingArea_() {};
+    socket_(io_context_) {};
 
 void Sender::start_session(){
-    connect_to_receiver();
+    TransferRequest transfer_request = create_transfer_request();
 
-    TransferRequest transfer_request = stage_files_for_transfer();
-    while(!send_transfer_request(transfer_request)){
-        transfer_request = stage_files_for_transfer();
+    connect_to_receiver();
+    if(!send_transfer_request(transfer_request)){
+        std::cout << "Transfer was declined by the receiver" << std::endl;
+        return;
     }
 
     send_files(transfer_request);
@@ -32,12 +33,11 @@ void Sender::connect_to_receiver(){
     const std::string receiver_address_str = receiver_endpoint_.address().to_string();
     uint16_t receiver_port = receiver_endpoint_.port();
     socket_.connect(receiver_endpoint_);
-    std::cout << "Connected to " << receiver_address_str << " on port " << receiver_port << std::endl;
+    std::cout << "Connected to " << receiver_address_str << ":" << receiver_port << std::endl;
 }
 
-TransferRequest Sender::stage_files_for_transfer(){
-    stagingArea_.stage_files();
-    return TransferRequest::from_file_paths(stagingArea_.get_staged_file_paths());
+TransferRequest Sender::create_transfer_request(){
+    return TransferRequest::from_file_paths(staging::get_staged_files());
 }
 
 bool Sender::send_transfer_request(const TransferRequest& transfer_request){

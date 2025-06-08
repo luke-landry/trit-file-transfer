@@ -4,7 +4,6 @@
 #include <asio.hpp>
 #include <string>
 
-#include "StagingArea.h"
 #include "TransferRequest.h"
 
 class Sender {
@@ -16,10 +15,9 @@ class Sender {
         asio::io_context io_context_;
         asio::ip::tcp::endpoint receiver_endpoint_;
         asio::ip::tcp::socket socket_;
-        StagingArea stagingArea_;
 
         void connect_to_receiver();
-        TransferRequest stage_files_for_transfer();
+        TransferRequest create_transfer_request();
         bool send_transfer_request(const TransferRequest& transfer_request);
         void send_files(const TransferRequest& transfer_request);
 };
