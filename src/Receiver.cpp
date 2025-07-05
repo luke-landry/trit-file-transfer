@@ -17,21 +17,37 @@
 #include <arpa/inet.h>
 #endif
 
-Receiver::Receiver(uint16_t port):
+Receiver::Receiver(uint16_t port, const std::string& password):
     io_context_(),
     socket_(io_context_),
-    acceptor_(io_context_, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {};
+    acceptor_(io_context_, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)),
+    password_(password) {}
 
 void Receiver::start_session(){
+    LOG("receiver session started");
 
     wait_for_connection();
+    LOG("connected to sender");
+
+    if(!receive_handshake()){
+        std::cout << "Handshake failed. Ensure passwords match." << std::endl;
+        return;
+    }
+    LOG("handshake successful");
 
     TransferRequest transfer_request = receive_transfer_request();
-    while(!accept_transfer_request(transfer_request)){
-        transfer_request = receive_transfer_request();
-    }
+    LOG("receieved transfer request");
 
+    while(!accept_transfer_request(transfer_request)){
+        LOG("transfer request denied by user");
+        transfer_request = receive_transfer_request();
+        LOG("receieved transfer request");
+    }
+    LOG("transfer request accepted by user");
+
+    LOG("starting transfer receive");
     receive_files(transfer_request);
+    LOG("transfer receieved and completed");
 }
 
 // Queries and returns the private ip address of this device to be used by the sender
@@ -77,13 +93,48 @@ std::string Receiver::get_private_ipv4_address(){
 
 // Waits for a successful connection to be established
 void Receiver::wait_for_connection(){
-    utils::log("waiting for connection from sender");
+    LOG("waiting for connection from sender");
     std::string address = get_private_ipv4_address();
     const uint16_t port = acceptor_.local_endpoint().port();
     std::cout << "Listening for connection at " << address << " on port " << port << "..." << std::endl;
     acceptor_.accept(socket_);
     std::string sender_address = socket_.remote_endpoint().address().to_string();
     std::cout << "Connected to " << sender_address << std::endl;
+}
+
+// Handshake format: salt, nonce, cipher
+bool Receiver::receive_handshake(){
+    LOG("receiving handshake");
+
+    LOG("receiving salt");
+    std::array<uint8_t, crypto::SALT_SIZE> salt_buffer;
+    asio::read(socket_, asio::buffer(salt_buffer.data(), salt_buffer.size()));
+    crypto::Salt salt(salt_buffer);
+
+    // TODO remove this log
+    LOG("salt=" + utils::buffer_to_hex_string(salt.data(), salt.size()));
+
+    LOG("deriving key");
+    crypto::Key key(password_, salt);
+
+    // TODO remove this log
+    LOG("key=" + utils::buffer_to_hex_string(key.data(), key.size()));
+
+    LOG("receiving handshake nonce");
+    std::array<uint8_t, crypto::NONCE_SIZE> nonce_buffer;
+    asio::read(socket_, asio::buffer(nonce_buffer.data(), nonce_buffer.size()));
+    crypto::Nonce nonce(nonce_buffer);
+    LOG("nonce=" + utils::buffer_to_hex_string(nonce.data(), nonce.size()));
+
+    LOG("receiving handshake cipher");
+    std::array<uint8_t, crypto::HANDSHAKE_CIPHERTEXT_SIZE> ciphertext;
+    asio::read(socket_, asio::buffer(ciphertext.data(), ciphertext.size()));
+    LOG("ciphertext=" + utils::buffer_to_hex_string(ciphertext.data(), ciphertext.size()));
+
+    bool handshake_success = crypto::verify_handshake_tag(key, nonce, ciphertext);
+    uint8_t response_byte = handshake_success ? 1 : 0;
+    asio::write(socket_, asio::buffer(&response_byte, sizeof(response_byte)));
+    return handshake_success;
 }
 
 /*

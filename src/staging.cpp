@@ -62,7 +62,7 @@ void save_staged_files(const std::unordered_set<std::filesystem::path>& staged_f
 
 void list_files(const std::unordered_set<std::filesystem::path>& files){
     for(const auto& file : files){
-        std::cout << "\t" << utils::relative_to_cwd(file) << '\n';
+        std::cout << "  " << utils::relative_to_cwd(file) << '\n';
     }
 }
 

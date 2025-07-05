@@ -14,9 +14,9 @@ sudo apt install build-essential cmake
 sudo apt install libasio-dev
 ```
 
-3. Install the zlib compression library 
+3. Install the zlib compression library, sodium encryption library, and pkg-config tool
 ```bash
-sudo apt install zlib1g-dev
+sudo apt install zlib1g-dev libsodium-dev pkg-config
 ```
 
 4. Configure the cmake build system by running the following (in the project root directory)

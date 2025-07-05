@@ -109,26 +109,32 @@ void utils::serialize<std::string>(const std::string& str, std::vector<uint8_t>&
     buffer.insert(buffer.end(), str.begin(), str.end());
 }
 
-// Prints the values of each byte of the buffer in hex, with 8 bytes per line
-void utils::print_buffer(std::vector<uint8_t> buffer){
+std::string utils::buffer_to_hex_string(const uint8_t* buffer, const size_t size) {
+    std::ostringstream oss;
 
-    // Preserve cout flags to be restored
-    std::ios_base::fmtflags cout_flags(std::cout.flags());
+    // Set hex output format with 2 digits, zero-filled
+    oss << std::hex << std::setfill('0') << std::uppercase;
 
-    // Set hex output format two places with 0 as fill
-    std::cout << std::setw(2) << std::setfill('0') << std::hex;
+    for(size_t i = 0; i < size; ++i){
 
-    int counter = 1;
-    for (const auto& byte : buffer) {
-        std::cout << "0x" << static_cast<int>(byte) << " ";
-        if (counter % 8 == 0) {
-            std::cout << std::endl;
+        // Add newline every before every 8th byte (except 0th byte)
+        if ((i != 0) && (i % 8 == 0)) {
+            oss << '\n';
         }
-        counter++;
-    }
-    std::cout << std::endl;
 
-    std::cout.flags(cout_flags);
+        oss << std::setw(2) << static_cast<int>(buffer[i]);
+
+        // Add space only if not end of line or end of buffer
+        if ((i + 1) % 8 != 0 && (i + 1) != size) {
+            oss << ' ';
+        }
+    }
+
+    if (size != 0) {
+        oss << '\n';
+    }
+
+    return oss.str();
 }
 
 // Specialization of deserialization function template for std::string
@@ -187,8 +193,10 @@ std::string utils::get_timestamp(const std::string& format){
 }
 
 void utils::log(const std::string& message) {
+    // Appending PID to log to allow multiple trit process logs at the same time
+    // TODO determine permanent solution or cleanup strategy
     static const std::filesystem::path log_path = 
-        std::filesystem::temp_directory_path() / "trit" / "log.txt";
+        std::filesystem::temp_directory_path() / "trit" / ("log_" + std::to_string(getpid()) + ".txt");
     static std::ofstream ofs;
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
@@ -217,4 +225,15 @@ std::unordered_set<std::filesystem::path> utils::relative_to_cwd(const std::unor
         rel_paths.insert(utils::relative_to_cwd(path));
     }
     return rel_paths;
+}
+
+std::string utils::str_join(const std::vector<std::string>& strings, const std::string& delimiter){
+    std::ostringstream oss;
+    for (auto it = strings.begin(); it != strings.end(); ++it) {
+        oss << *it;
+        if (std::next(it) != strings.end()) {
+            oss << delimiter;
+        }
+    }
+    return oss.str();
 }

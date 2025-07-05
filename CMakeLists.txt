@@ -14,11 +14,14 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/../bin")
 include_directories(include)
 
 find_package(ZLIB REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(LIBSODIUM REQUIRED libsodium)
 
 add_executable(trit
     src/main.cpp
     src/staging.cpp
     src/utils.cpp
+    src/crypto.cpp
     src/Sender.cpp
     src/Receiver.cpp
     src/TransferRequest.cpp
@@ -28,16 +31,5 @@ add_executable(trit
     src/CompressionManager.cpp
 )
 
-# Include Asio library based on platform
-if(WIN32)
-    message(STATUS "Configuring CMake for Windows")
-    include_directories(C:/libraries/asio/include)
-    target_link_libraries(${PROJECT_NAME} ws2_32 mswsock ZLIB::ZLIB)
-
-elseif(UNIX)
-    message(STATUS "Configuring CMake for Linux")
-    include_directories(/usr/include)
-
-    # Threading libaries not linked by default on Linux, so must be included here
-    target_link_libraries(${PROJECT_NAME} pthread ZLIB::ZLIB)
-endif()
+target_include_directories(trit PRIVATE ${LIBSODIUM_INCLUDE_DIRS})
+target_link_libraries(trit PRIVATE pthread ZLIB::ZLIB ${LIBSODIUM_LIBRARIES})

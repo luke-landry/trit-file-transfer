@@ -25,7 +25,7 @@ namespace utils {
     uint16_t generate_random_port();
     bool local_port_available(uint16_t port);
     std::vector<std::string> string_split(const std::string& str);
-    void print_buffer(std::vector<uint8_t> buffer);
+    std::string buffer_to_hex_string(const uint8_t* buffer, const size_t size);
     uint64_t deserialize_uint(std::vector<uint8_t> buffer, uint8_t size);
     std::string format_data_size(uint64_t size_in_bytes);
     // format follows std::put_time format string
@@ -33,6 +33,7 @@ namespace utils {
     void log(const std::string& message);
     std::filesystem::path relative_to_cwd(const std::filesystem::path& path);
     std::unordered_set<std::filesystem::path> relative_to_cwd(const std::unordered_set<std::filesystem::path>& paths);
+    std::string str_join(const std::vector<std::string>& strings, const std::string& delimiter);
 
     // Template function definitions
 
@@ -111,6 +112,6 @@ namespace utils {
     template<>
     std::vector<uint8_t>::const_iterator deserialize<std::string>(const std::vector<uint8_t>::const_iterator it, const std::vector<uint8_t>::const_iterator end, std::string& out_value);
 
-};
+}; // namespace utils
 
 #endif

@@ -12,21 +12,39 @@
 #include "CompressionManager.h"
 #include "staging.h"
 
-Sender::Sender(const std::string ip_address_str, const uint16_t port): 
+Sender::Sender(const std::string& ip_address_str, const uint16_t port, const crypto::Key& key,const crypto::Salt& salt): 
     io_context_(),
     receiver_endpoint_(asio::ip::address::from_string(ip_address_str), port),
-    socket_(io_context_) {};
+    socket_(io_context_),
+    key_(key),
+    salt_(salt) {}
 
 void Sender::start_session(){
+    LOG("sender session started");
+    
     TransferRequest transfer_request = create_transfer_request();
+    LOG("transfer request created");
 
     connect_to_receiver();
-    if(!send_transfer_request(transfer_request)){
-        std::cout << "Transfer was declined by the receiver" << std::endl;
+    LOG("connected to receiver");
+    
+    if(!send_handshake()){
+        std::cout << "Handshake failed. Ensure passwords match." << std::endl;
         return;
     }
+    LOG("handshake successful");
 
+    LOG("sending transfer request");
+    if(!send_transfer_request(transfer_request)){
+        std::cout << "Transfer was declined by the receiver" << std::endl;
+        LOG("transfer request denied by receiver");
+        return;
+    }
+    LOG("transfer request accepted by receiver");
+
+    LOG("starting transfer send");
     send_files(transfer_request);
+    LOG("transfer sent and completed");
 }
 
 void Sender::connect_to_receiver(){
@@ -34,6 +52,36 @@ void Sender::connect_to_receiver(){
     uint16_t receiver_port = receiver_endpoint_.port();
     socket_.connect(receiver_endpoint_);
     std::cout << "Connected to " << receiver_address_str << ":" << receiver_port << std::endl;
+}
+
+// Handshake verifies matching keys were derived between sender and receiver (from matching passwords)
+
+// Handshake format: salt, nonce, cipher
+bool Sender::send_handshake(){
+    LOG("sending handshake");
+    
+    asio::write(socket_, asio::buffer(salt_.data(), salt_.size()));
+    LOG("sent salt");
+
+    LOG("creating handshake nonce and cipher");
+    auto [nonce, cipher] = crypto::encrypt_handshake_tag(key_);
+
+    // TODO remove these logs
+    LOG("nonce=" + utils::buffer_to_hex_string(nonce.data(), nonce.size()));
+    LOG("cipher=" + utils::buffer_to_hex_string(cipher.data(), cipher.size()));
+
+    asio::write(socket_, asio::buffer(nonce.data(), nonce.size()));
+    LOG("handshake nonce sent");
+
+    asio::write(socket_, asio::buffer(cipher.data(), cipher.size()));
+    LOG("handshake cipher sent");
+
+    std::cout << "Handshake sent" << std::endl;
+
+    // Get success/fail response
+    uint8_t handshake_success_byte;
+    asio::read(socket_, asio::buffer(&handshake_success_byte, sizeof(handshake_success_byte)));
+    return static_cast<bool>(handshake_success_byte);
 }
 
 TransferRequest Sender::create_transfer_request(){
@@ -51,9 +99,7 @@ bool Sender::send_transfer_request(const TransferRequest& transfer_request){
     // Get accept/deny response
     uint8_t request_accepted_byte;
     asio::read(socket_, asio::buffer(&request_accepted_byte, sizeof(request_accepted_byte)));
-    bool request_accepted = request_accepted_byte;
-    std::cout << (request_accepted ? "Transfer accepted" : "Transfer denied") << std::endl;
-    return request_accepted;
+    return static_cast<bool>(request_accepted_byte);
 }
 
 void Sender::send_files(const TransferRequest& transfer_request){
