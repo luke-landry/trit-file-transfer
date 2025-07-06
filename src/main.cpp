@@ -100,7 +100,7 @@ void handle_receive(const std::vector<std::string>& args) {
         port = utils::generate_random_port();
     }
 
-    const std::string& password = args[0];\
+    const std::string& password = args[0];
 
     // TODO check is valid password
 

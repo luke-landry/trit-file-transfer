@@ -5,13 +5,20 @@
 #include <thread>
 #include <memory>
 #include <atomic>
+#include <variant>
 
 #include "BoundedThreadSafeQueue.h"
 #include "Chunk.h"
+#include <crypto.h>
 
 class EncryptionManager {
     public:
-        EncryptionManager(uint32_t chunk_size, uint32_t last_chunk_size);
+
+        // Encryptor constructor
+        EncryptionManager(uint32_t chunk_size, uint32_t last_chunk_size, uint64_t num_chunks, crypto::Encryptor encryptor);
+
+        // Decryptor constructor
+        EncryptionManager(uint32_t chunk_size, uint32_t last_chunk_size, uint64_t num_chunks, crypto::Decryptor decryptor);
 
         void encrypt_chunks(
             BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& input_queue,
@@ -25,14 +32,18 @@ class EncryptionManager {
             BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& output_queue,
             std::atomic<bool>& output_done);
 
-        std::unique_ptr<Chunk> encrypt_chunk(const Chunk& chunk);
-        std::unique_ptr<Chunk> decrypt_chunk(const Chunk& chunk);
-        std::vector<uint8_t> encrypt_data(const uint8_t* data, uint16_t data_size);
-        std::vector<uint8_t> decrypt_data(const uint8_t* encrypted_data, uint16_t data_size);
-
     private:
         const uint32_t chunk_size_;
         const uint32_t last_chunk_size_;
+        const uint64_t num_chunks_;
+
+        // EncryptionManager can be configured for either encryption or decryption
+        std::variant<crypto::Encryptor, crypto::Decryptor> crypto_vnt_;
+
+        crypto::Encryptor& get_encryptor();
+        crypto::Decryptor& get_decryptor();
+        std::unique_ptr<Chunk> encrypt_chunk(const Chunk& chunk);
+        std::unique_ptr<Chunk> decrypt_chunk(const Chunk& chunk);
 };
 
 #endif

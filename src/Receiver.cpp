@@ -131,6 +131,8 @@ bool Receiver::receive_handshake(){
     asio::read(socket_, asio::buffer(ciphertext.data(), ciphertext.size()));
     LOG("ciphertext=" + utils::buffer_to_hex_string(ciphertext.data(), ciphertext.size()));
 
+    // TODO add receive encryption header
+
     bool handshake_success = crypto::verify_handshake_tag(key, nonce, ciphertext);
     uint8_t response_byte = handshake_success ? 1 : 0;
     asio::write(socket_, asio::buffer(&response_byte, sizeof(response_byte)));

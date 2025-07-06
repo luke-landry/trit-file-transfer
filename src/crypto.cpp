@@ -39,7 +39,6 @@ std::array<uint8_t, crypto::KEY_SIZE> derive_key_bytes(const std::string& passwo
     return key;
 }
 
-
 }  // anonymous namespace
 
 namespace crypto {
@@ -90,6 +89,91 @@ const uint8_t* Key::data() const noexcept {
 
 std::size_t Key::size() const noexcept {
     return data_.size();
+}
+
+// Encryptor class
+
+Encryptor::Encryptor(const Key& key) {
+    if (crypto_secretstream_xchacha20poly1305_init_push(&state_, header_.data(), key.data()) != 0) {
+        throw std::runtime_error("Encryptor: Failed to initialize stream encryption");
+    }
+}
+
+const std::array<uint8_t, HEADER_SIZE>& Encryptor::header() const noexcept {
+    return header_;
+}
+
+void Encryptor::encrypt(const uint8_t* input, std::size_t len,
+                        uint8_t* output, std::size_t* out_len,
+                        bool is_final)
+{
+    uint8_t tag = is_final
+        ? crypto_secretstream_xchacha20poly1305_TAG_FINAL
+        : crypto_secretstream_xchacha20poly1305_TAG_MESSAGE;
+
+    unsigned long long out_len_raw = 0;
+
+    if (crypto_secretstream_xchacha20poly1305_push(
+            &state_,
+            output, &out_len_raw,
+            input, static_cast<unsigned long long>(len),
+            nullptr, 0,
+            tag) != 0)
+    {
+        throw std::runtime_error("Encryptor: Encryption failed");
+    }
+
+    if(out_len_raw != (len + ENCRYPTION_ADDITIONAL_BYTES)){
+        throw std::runtime_error("Encryption output bad length");
+    }
+
+    if (out_len) {
+        *out_len = static_cast<std::size_t>(out_len_raw);
+    }
+}
+
+// Decryptor class
+
+Decryptor::Decryptor(const Key& key, const std::array<uint8_t, HEADER_SIZE>& header){
+    if (crypto_secretstream_xchacha20poly1305_init_pull(
+        &state_,
+        header.data(),
+        key.data()) != 0)
+    {
+        throw std::runtime_error("Decryptor: Failed to initialize stream decryption");
+    }
+}
+
+void Decryptor::decrypt(const uint8_t* input, std::size_t len,
+                        uint8_t* output, std::size_t* out_len,
+                        bool& is_final)
+{
+    if (len < ENCRYPTION_ADDITIONAL_BYTES) {
+        throw std::invalid_argument("Decryptor: Ciphertext chunk too small");
+    }
+
+    unsigned long long out_len_raw = 0;
+    uint8_t tag = 0;
+
+    if (crypto_secretstream_xchacha20poly1305_pull(
+            &state_,
+            output, &out_len_raw,
+            &tag,
+            input, static_cast<unsigned long long>(len),
+            nullptr, 0) != 0)
+    {
+        throw std::runtime_error("Decryptor: Authentication failed or corrupt chunk");
+    }
+
+    if(out_len_raw != (len - ENCRYPTION_ADDITIONAL_BYTES)){
+        throw std::runtime_error("Decryption output bad length");
+    }
+
+    is_final = (tag == crypto_secretstream_xchacha20poly1305_TAG_FINAL);
+
+    if (out_len) {
+        *out_len = static_cast<std::size_t>(out_len_raw);
+    }
 }
 
 // public crypto functions

@@ -4,22 +4,12 @@
 ## Build
 ### Debian/Ubuntu
 #### First time setup
-1. Install build essentials and cmake
+1. Install dependencies
 ```bash 
-sudo apt install build-essential cmake
+sudo apt install build-essential cmake libasio-dev zlib1g-dev libsodium-dev pkg-config
 ```
 
-2. Install the asio networking library 
-```bash
-sudo apt install libasio-dev
-```
-
-3. Install the zlib compression library, sodium encryption library, and pkg-config tool
-```bash
-sudo apt install zlib1g-dev libsodium-dev pkg-config
-```
-
-4. Configure the cmake build system by running the following (in the project root directory)
+2. Configure the cmake build system by running the following (in the project root directory)
     - Also run this command whenever CMakeLists.txt is modified (e.g. adding new source files)
 ```bash
 cmake -B build -S .

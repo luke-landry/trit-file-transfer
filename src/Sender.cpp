@@ -22,6 +22,11 @@ Sender::Sender(const std::string& ip_address_str, const uint16_t port, const cry
 void Sender::start_session(){
     LOG("sender session started");
     
+    if(staging::get_staged_files().size() == 0){
+        std::cout << "No files staged. Nothing to send." << std::endl;
+        return;
+    }
+
     TransferRequest transfer_request = create_transfer_request();
     LOG("transfer request created");
 
@@ -75,6 +80,8 @@ bool Sender::send_handshake(){
 
     asio::write(socket_, asio::buffer(cipher.data(), cipher.size()));
     LOG("handshake cipher sent");
+
+    // TODO add send encryption header
 
     std::cout << "Handshake sent" << std::endl;
 

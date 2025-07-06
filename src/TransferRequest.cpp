@@ -20,6 +20,10 @@ TransferRequest TransferRequest::from_file_paths(const std::unordered_set<std::f
 
     const uint32_t num_files = file_paths.size();
 
+    if(num_files == 0){
+        throw std::runtime_error("Cannot create transfer request from empty set of file paths");
+    }
+
     uint64_t transfer_size = 0;
 
     // Determine file sizes and store in struct, while also calculating total size
@@ -30,6 +34,10 @@ TransferRequest TransferRequest::from_file_paths(const std::unordered_set<std::f
         auto file_size = std::filesystem::file_size(file_path);
         file_infos.emplace_back(relative_generic_path, file_size);
         transfer_size += file_size;
+    }
+
+    if(transfer_size == 0){
+        throw std::runtime_error("Cannot create transfer request because size of transfer would be 0 bytes");
     }
 
     // If total size is less than the max chunk size, use the total transfer size so that the transfer is exactly one chunk

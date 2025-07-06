@@ -29,6 +29,7 @@ add_executable(trit
     src/FileManager.cpp
     src/TransferManager.cpp
     src/CompressionManager.cpp
+    src/EncryptionManager.cpp
 )
 
 target_include_directories(trit PRIVATE ${LIBSODIUM_INCLUDE_DIRS})

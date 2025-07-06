@@ -2,8 +2,6 @@
 #define RECEIVER_H
 
 #include <string>
-#include <atomic>
-#include <optional>
 #include <asio.hpp>
 
 #include "TransferRequest.h"
