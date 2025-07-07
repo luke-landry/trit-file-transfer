@@ -20,10 +20,10 @@ class Sender {
         const crypto::Salt salt_;
 
         void connect_to_receiver();
-        bool send_handshake();
+        bool send_handshake(const crypto::Encryptor& encryptor);
         TransferRequest create_transfer_request();
         bool send_transfer_request(const TransferRequest& transfer_request);
-        void send_files(const TransferRequest& transfer_request);
+        void send_files(const TransferRequest& transfer_request, crypto::Encryptor encryptor);
        
 };
 

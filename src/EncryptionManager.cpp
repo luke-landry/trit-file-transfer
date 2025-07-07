@@ -105,6 +105,7 @@ std::unique_ptr<Chunk> EncryptionManager::decrypt_chunk(const Chunk& chunk){
     }
     if (is_final != (chunk.sequence_num() == num_chunks_)){
         throw std::runtime_error("EncryptionManager: final chunk decryption mismatch");
-    }   
+    }
+
     return std::make_unique<Chunk>(chunk.sequence_num(), std::move(decrypted_data));
 }

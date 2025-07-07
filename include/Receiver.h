@@ -2,6 +2,7 @@
 #define RECEIVER_H
 
 #include <string>
+#include <optional>
 #include <asio.hpp>
 
 #include "TransferRequest.h"
@@ -22,10 +23,10 @@ class Receiver {
         std::string get_private_ipv4_address();
         void start_listening_for_connection();
         void wait_for_connection();
-        bool receive_handshake();
+        bool receive_handshake(std::optional<crypto::Decryptor>& decryptor_opt);
         TransferRequest receive_transfer_request();
         bool accept_transfer_request(const TransferRequest& transfer_request);
-        void receive_files(const TransferRequest& transfer_request);
+        void receive_files(const TransferRequest& transfer_request, crypto::Decryptor decryptor);
 };
 
 #endif

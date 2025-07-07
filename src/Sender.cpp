@@ -10,6 +10,7 @@
 #include "TransferManager.h"
 #include "ProgressTracker.h"
 #include "CompressionManager.h"
+#include "EncryptionManager.h"
 #include "staging.h"
 
 Sender::Sender(const std::string& ip_address_str, const uint16_t port, const crypto::Key& key,const crypto::Salt& salt): 
@@ -27,17 +28,18 @@ void Sender::start_session(){
         return;
     }
 
-    TransferRequest transfer_request = create_transfer_request();
-    LOG("transfer request created");
-
     connect_to_receiver();
     LOG("connected to receiver");
     
-    if(!send_handshake()){
+    crypto::Encryptor encryptor(key_);
+    if(!send_handshake(encryptor)){
         std::cout << "Handshake failed. Ensure passwords match." << std::endl;
         return;
     }
     LOG("handshake successful");
+
+    TransferRequest transfer_request = create_transfer_request();
+    LOG("transfer request created");
 
     LOG("sending transfer request");
     if(!send_transfer_request(transfer_request)){
@@ -48,7 +50,7 @@ void Sender::start_session(){
     LOG("transfer request accepted by receiver");
 
     LOG("starting transfer send");
-    send_files(transfer_request);
+    send_files(transfer_request, std::move(encryptor));
     LOG("transfer sent and completed");
 }
 
@@ -61,8 +63,8 @@ void Sender::connect_to_receiver(){
 
 // Handshake verifies matching keys were derived between sender and receiver (from matching passwords)
 
-// Handshake format: salt, nonce, cipher
-bool Sender::send_handshake(){
+// Handshake format: salt, nonce, cipher, header
+bool Sender::send_handshake(const crypto::Encryptor& encryptor){
     LOG("sending handshake");
     
     asio::write(socket_, asio::buffer(salt_.data(), salt_.size()));
@@ -71,9 +73,8 @@ bool Sender::send_handshake(){
     LOG("creating handshake nonce and cipher");
     auto [nonce, cipher] = crypto::encrypt_handshake_tag(key_);
 
-    // TODO remove these logs
-    LOG("nonce=" + utils::buffer_to_hex_string(nonce.data(), nonce.size()));
-    LOG("cipher=" + utils::buffer_to_hex_string(cipher.data(), cipher.size()));
+    // LOG("nonce=" + utils::buffer_to_hex_string(nonce.data(), nonce.size()));
+    // LOG("cipher=" + utils::buffer_to_hex_string(cipher.data(), cipher.size()));
 
     asio::write(socket_, asio::buffer(nonce.data(), nonce.size()));
     LOG("handshake nonce sent");
@@ -81,7 +82,10 @@ bool Sender::send_handshake(){
     asio::write(socket_, asio::buffer(cipher.data(), cipher.size()));
     LOG("handshake cipher sent");
 
-    // TODO add send encryption header
+    LOG("sending encryption header");
+    const auto& header = encryptor.header();
+    asio::write(socket_, asio::buffer(header.data(), header.size()));
+    // LOG("header=" + utils::buffer_to_hex_string(header.data(), header.size()));
 
     std::cout << "Handshake sent" << std::endl;
 
@@ -109,38 +113,51 @@ bool Sender::send_transfer_request(const TransferRequest& transfer_request){
     return static_cast<bool>(request_accepted_byte);
 }
 
-void Sender::send_files(const TransferRequest& transfer_request){
+void Sender::send_files(const TransferRequest& transfer_request, crypto::Encryptor encryptor){
     std::cout << "Sending files..." << std::endl;
     auto start_time = std::chrono::system_clock::now();
 
     uint32_t num_chunks = transfer_request.get_num_chunks();
 
     constexpr int QUEUE_CAPACITY = 50;
-    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> uncompressed_chunk_queue(QUEUE_CAPACITY);
+    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> file_chunk_queue(QUEUE_CAPACITY);
+    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> encrypted_chunk_queue(QUEUE_CAPACITY);
 
     // Completion flags and progress
     std::atomic<bool> file_chunking_done(false);
-    std::atomic<bool> compression_done(false);
+    std::atomic<bool> encryption_done(false);
     std::atomic<uint32_t> chunks_sent(0);
-
     
     FileManager file_chunker;
     std::thread chunker_thread([&](){
         file_chunker.read_files_into_chunks(
             transfer_request,
-            uncompressed_chunk_queue,
+            file_chunk_queue,
             file_chunking_done
         );
     });
 
-    // TODO reintroduce compression stage, refactor with "pipeline" design
+    EncryptionManager chunk_encryptor(
+        transfer_request.get_chunk_size(),
+        transfer_request.get_final_chunk_size(),
+        num_chunks,
+        std::move(encryptor)
+    );
+    std::thread encryption_thread([&](){
+        chunk_encryptor.encrypt_chunks(
+            file_chunk_queue,
+            file_chunking_done,
+            encrypted_chunk_queue,
+            encryption_done
+        );
+    });
 
     TransferManager chunk_sender;
     std::thread transmission_thread([&](){
         chunk_sender.send_chunks(
             socket_,
-            uncompressed_chunk_queue,
-            file_chunking_done,
+            encrypted_chunk_queue,
+            encryption_done,
             chunks_sent
         );
     });
@@ -151,6 +168,7 @@ void Sender::send_files(const TransferRequest& transfer_request){
     });
 
     chunker_thread.join();
+    encryption_thread.join();
     transmission_thread.join();
     progress_thread.join();
 

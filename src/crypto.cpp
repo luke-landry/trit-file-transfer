@@ -21,9 +21,6 @@ std::array<uint8_t, crypto::SALT_SIZE> generate_salt_bytes() {
 
 std::array<uint8_t, crypto::KEY_SIZE> derive_key_bytes(const std::string& password, const crypto::Salt& salt) {
     std::array<uint8_t, crypto::KEY_SIZE> key{};
-    if (password.empty()) {
-        throw std::invalid_argument("Password must not be empty");
-    }
 
     if (crypto_pwhash(
             key.data(), key.size(),
@@ -47,9 +44,7 @@ namespace crypto {
 
 // Nonce class
 
-Nonce::Nonce() {
-    data_ = generate_nonce_bytes();
-}
+Nonce::Nonce(): data_(generate_nonce_bytes()) {}
 
 Nonce::Nonce(const std::array<uint8_t, NONCE_SIZE>& buffer): data_(buffer) {}
 
@@ -63,9 +58,7 @@ std::size_t crypto::Nonce::size() const noexcept {
 
 // Salt class
 
-Salt::Salt() {
-    data_ = generate_salt_bytes();
-}
+Salt::Salt(): data_(generate_salt_bytes()) {}
 
 Salt::Salt(const std::array<uint8_t, SALT_SIZE>& buffer): data_(buffer) {}
 
@@ -79,9 +72,7 @@ std::size_t Salt::size() const noexcept {
 
 // Key class
 
-Key::Key(const std::string& password, const Salt& salt) {
-    data_ = derive_key_bytes(password, salt);
-}
+Key::Key(const std::string& password, const Salt& salt): data_(derive_key_bytes(password, salt)) {}
 
 const uint8_t* Key::data() const noexcept {
     return data_.data();

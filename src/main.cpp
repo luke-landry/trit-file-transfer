@@ -49,9 +49,9 @@ void handle_help(const std::vector<std::string>& args) {
 void handle_send(const std::vector<std::string>& args) {
     LOG("handling send command");
 
-    if (args.size() != 3) {
-        std::cerr << "trit: 'send' requires an ip, port, and password.\n";
-        std::cout << "usage: trit send <ip> <port> <password>\n";
+    if (args.size() != 2 && args.size() != 3) {
+        std::cerr << "trit: 'send' requires an ip, port, and optionally a password.\n";
+        std::cout << "usage: trit send <ip> <port> [password]\n";
         exit(1);
     }
 
@@ -70,15 +70,17 @@ void handle_send(const std::vector<std::string>& args) {
     }
     uint16_t port = std::stoi(port_str);
 
-    const std::string& password = args[2];
-    // TODO check is valid password
+    const std::string& password = args.size() == 3 ? args[2] : "";
+
+    crypto::init_sodium();
+    LOG("initialized sodium");
+
     crypto::Salt salt;
     crypto::Key key(password, salt);
 
-    // TODO remove these logs
-    LOG("password=" + password);
-    LOG("salt=" + utils::buffer_to_hex_string(salt.data(), salt.size()));
-    LOG("key=" + utils::buffer_to_hex_string(key.data(), key.size()));
+    // LOG("password=" + password);
+    // LOG("salt=" + utils::buffer_to_hex_string(salt.data(), salt.size()));
+    // LOG("key=" + utils::buffer_to_hex_string(key.data(), key.size()));
 
     LOG(std::string("sending to ") + ip + ":" + port_str);
     Sender sender(ip, port, key, salt);
@@ -88,9 +90,9 @@ void handle_send(const std::vector<std::string>& args) {
 void handle_receive(const std::vector<std::string>& args) {
     LOG("handling receive command");
 
-    if (args.size() != 1) {
-        std::cerr << "trit: 'receive' requires a password.\n";
-        std::cout << "usage: trit receive <password>\n";
+    if (args.size() > 1) {
+        std::cerr << "trit: 'receive' only optionally takes a password.\n";
+        std::cout << "usage: trit receive [password]\n";
         exit(1);
     }
 
@@ -100,12 +102,11 @@ void handle_receive(const std::vector<std::string>& args) {
         port = utils::generate_random_port();
     }
 
-    const std::string& password = args[0];
+    const std::string& password = args.size() == 1 ? args[0] : "";
+    // LOG("password=" + password);
 
-    // TODO check is valid password
-
-    // TODO remove this log
-    LOG("password=" + password);
+    crypto::init_sodium();
+    LOG("initialized sodium");
 
     LOG(std::string("receiving on port ") + std::to_string(port));
     Receiver receiver(port, password);
@@ -128,10 +129,6 @@ int main(int argc, char* argv[]){
 
     LOG("command: " + command);
     LOG("args: " + utils::str_join(command_args, ", "));
-
-    // Initialize the libsodium encryption library state
-    crypto::init_sodium();
-    LOG("initialized sodium");
 
     using HandlerFunction = std::function<void(const std::vector<std::string>&)>;
     const std::unordered_map<std::string, HandlerFunction> command_dispatch_map = {

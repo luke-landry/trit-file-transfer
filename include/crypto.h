@@ -57,7 +57,13 @@ class Key {
 
 class Encryptor {
     public:
-        explicit Encryptor(const Key& key);
+        Encryptor(const Key& key);
+
+        // Due to internal state, an encryptor should never be copied, only moved
+        Encryptor(const Encryptor&) = delete;
+        Encryptor& operator=(const Encryptor&) = delete;
+        Encryptor(Encryptor&&) = default;
+        Encryptor& operator=(Encryptor&&) = default;
 
         // Returns the stream header (must be sent to receiver)
         const std::array<uint8_t, HEADER_SIZE>& header() const noexcept;
@@ -74,6 +80,12 @@ class Decryptor {
     public:
         // Initializes decryption using the shared key and the received header
         Decryptor(const Key& key, const std::array<uint8_t, HEADER_SIZE>& header);
+
+        // Due to internal state, a decryptor should never be copied, only moved
+        Decryptor(const Decryptor&) = delete;
+        Decryptor& operator=(const Decryptor&) = delete;
+        Decryptor(Decryptor&&) = default;
+        Decryptor& operator=(Decryptor&&) = default;
 
         // Decrypts a buffer with output size guaranteed to be len - ENCRYPTION_ADDITIONAL_BYTES
         void decrypt(const uint8_t* input, std::size_t len, uint8_t* output, std::size_t* out_len, bool& is_final);

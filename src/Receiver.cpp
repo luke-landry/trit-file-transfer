@@ -9,6 +9,7 @@
 #include "FileManager.h"
 #include "ProgressTracker.h"
 #include "CompressionManager.h"
+#include "EncryptionManager.h"
 
 #ifdef __linux__
 #include <ifaddrs.h>
@@ -29,7 +30,8 @@ void Receiver::start_session(){
     wait_for_connection();
     LOG("connected to sender");
 
-    if(!receive_handshake()){
+    std::optional<crypto::Decryptor> decryptor_opt;
+    if(!receive_handshake(decryptor_opt)){
         std::cout << "Handshake failed. Ensure passwords match." << std::endl;
         return;
     }
@@ -46,7 +48,7 @@ void Receiver::start_session(){
     LOG("transfer request accepted by user");
 
     LOG("starting transfer receive");
-    receive_files(transfer_request);
+    receive_files(transfer_request, std::move(*decryptor_opt));
     LOG("transfer receieved and completed");
 }
 
@@ -102,8 +104,8 @@ void Receiver::wait_for_connection(){
     std::cout << "Connected to " << sender_address << std::endl;
 }
 
-// Handshake format: salt, nonce, cipher
-bool Receiver::receive_handshake(){
+// Handshake format: salt, nonce, cipher, header
+bool Receiver::receive_handshake(std::optional<crypto::Decryptor>& decryptor_opt){
     LOG("receiving handshake");
 
     LOG("receiving salt");
@@ -111,29 +113,31 @@ bool Receiver::receive_handshake(){
     asio::read(socket_, asio::buffer(salt_buffer.data(), salt_buffer.size()));
     crypto::Salt salt(salt_buffer);
 
-    // TODO remove this log
-    LOG("salt=" + utils::buffer_to_hex_string(salt.data(), salt.size()));
+    // LOG("salt=" + utils::buffer_to_hex_string(salt.data(), salt.size()));
 
     LOG("deriving key");
     crypto::Key key(password_, salt);
 
-    // TODO remove this log
-    LOG("key=" + utils::buffer_to_hex_string(key.data(), key.size()));
+    // LOG("key=" + utils::buffer_to_hex_string(key.data(), key.size()));
 
     LOG("receiving handshake nonce");
     std::array<uint8_t, crypto::NONCE_SIZE> nonce_buffer;
     asio::read(socket_, asio::buffer(nonce_buffer.data(), nonce_buffer.size()));
     crypto::Nonce nonce(nonce_buffer);
-    LOG("nonce=" + utils::buffer_to_hex_string(nonce.data(), nonce.size()));
+    // LOG("nonce=" + utils::buffer_to_hex_string(nonce.data(), nonce.size()));
 
     LOG("receiving handshake cipher");
     std::array<uint8_t, crypto::HANDSHAKE_CIPHERTEXT_SIZE> ciphertext;
     asio::read(socket_, asio::buffer(ciphertext.data(), ciphertext.size()));
-    LOG("ciphertext=" + utils::buffer_to_hex_string(ciphertext.data(), ciphertext.size()));
+    // LOG("ciphertext=" + utils::buffer_to_hex_string(ciphertext.data(), ciphertext.size()));
 
-    // TODO add receive encryption header
+    LOG("receiving encryption header");
+    std::array<uint8_t, crypto::HEADER_SIZE> header;
+    asio::read(socket_, asio::buffer(header.data(), header.size()));
+    // LOG("header=" + utils::buffer_to_hex_string(header.data(), header.size()));
 
     bool handshake_success = crypto::verify_handshake_tag(key, nonce, ciphertext);
+    if (handshake_success) { decryptor_opt.emplace(key, header); }
     uint8_t response_byte = handshake_success ? 1 : 0;
     asio::write(socket_, asio::buffer(&response_byte, sizeof(response_byte)));
     return handshake_success;
@@ -180,7 +184,7 @@ bool Receiver::accept_transfer_request(const TransferRequest& transfer_request){
     return request_accepted;
 }
 
-void Receiver::receive_files(const TransferRequest& transfer_request){
+void Receiver::receive_files(const TransferRequest& transfer_request, crypto::Decryptor decryptor){
     std::cout << "Receiving files..." << std::endl;
     auto start_time = std::chrono::system_clock::now();
 
@@ -188,9 +192,10 @@ void Receiver::receive_files(const TransferRequest& transfer_request){
 
     constexpr int QUEUE_CAPACITY = 50;
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>> received_chunk_queue(QUEUE_CAPACITY);
+    BoundedThreadSafeQueue<std::unique_ptr<Chunk>> decrypted_chunk_queue(QUEUE_CAPACITY);
 
     std::atomic<bool> chunk_reception_done(false);
-    std::atomic<bool> decompression_done(false);
+    std::atomic<bool> decryption_done(false);
     std::atomic<uint32_t> chunks_written(0);
 
     TransferManager chunk_receiver;
@@ -203,11 +208,26 @@ void Receiver::receive_files(const TransferRequest& transfer_request){
         );
     });
 
+    EncryptionManager chunk_decryptor(
+        transfer_request.get_chunk_size(),
+        transfer_request.get_final_chunk_size(),
+        num_chunks,
+        std::move(decryptor)
+    );
+    std::thread decryption_thread([&](){
+        chunk_decryptor.decrypt_chunks(
+            received_chunk_queue,
+            chunk_reception_done,
+            decrypted_chunk_queue,
+            decryption_done
+        );
+    });
+
     FileManager file_writer;
     std::thread writer_thread([&](){
         file_writer.write_files_from_chunks(transfer_request,
-            received_chunk_queue,
-            chunk_reception_done,
+            decrypted_chunk_queue,
+            decryption_done,
             chunks_written
         );
     });
@@ -218,6 +238,7 @@ void Receiver::receive_files(const TransferRequest& transfer_request){
     });
 
     receiver_thread.join();
+    decryption_thread.join();
     writer_thread.join();
     progress_thread.join();
 

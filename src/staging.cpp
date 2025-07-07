@@ -233,12 +233,12 @@ void staging::clear(){
 
 void staging::help() {
     std::cout << "Commands:\n";
-    std::cout << "  trit add <file_pattern>...      Stage file(s) for transfer\n";
-    std::cout << "  trit drop <file_pattern>...     Unstage previously staged file(s)\n";
-    std::cout << "  trit list                       List currently staged files\n";
-    std::cout << "  trit send                       Send a file transfer request to a receiver\n";
-    std::cout << "  trit receive                    Start listening for incoming file transfers\n\n";
-    std::cout << "  trit help                       Display this help message\n";
+    std::cout << "  trit add <file_pattern>...          Stage file(s) for transfer\n";
+    std::cout << "  trit drop <file_pattern>...         Unstage previously staged file(s)\n";
+    std::cout << "  trit list                           List currently staged files\n";
+    std::cout << "  trit send <ip> <port> [password]    Send a file transfer request to a receiver\n";
+    std::cout << "  trit receive [password]             Start listening for incoming file transfers\n\n";
+    std::cout << "  trit help                           Display this help message\n";
 
     std::cout << "File pattern syntax:\n";
     std::cout << "  *.ext           Matches all files with the given extension in the current directory\n";
