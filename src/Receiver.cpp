@@ -27,29 +27,32 @@ Receiver::Receiver(uint16_t port, const std::string& password):
 void Receiver::start_session(){
     LOG("receiver session started");
 
-    wait_for_connection();
-    LOG("connected to sender");
+    while(true){
+        std::cout << "Waiting for connections..." << std::endl;
+        wait_for_connection();
+        LOG("connected to sender");
 
-    std::optional<crypto::Decryptor> decryptor_opt;
-    if(!receive_handshake(decryptor_opt)){
-        std::cout << "Handshake failed. Ensure passwords match." << std::endl;
-        return;
-    }
-    LOG("handshake successful");
+        std::optional<crypto::Decryptor> decryptor_opt;
+        if(!receive_handshake(decryptor_opt)){
+            std::cout << "Handshake failed. Ensure passwords match." << std::endl;
+            continue;
+        }
+        LOG("handshake successful");
 
-    TransferRequest transfer_request = receive_transfer_request();
-    LOG("receieved transfer request");
-
-    while(!accept_transfer_request(transfer_request)){
-        LOG("transfer request denied by user");
-        transfer_request = receive_transfer_request();
+        TransferRequest transfer_request = receive_transfer_request();
         LOG("receieved transfer request");
-    }
-    LOG("transfer request accepted by user");
+        if(!accept_transfer_request(transfer_request)){
+            LOG("transfer request denied by user");
+            continue;
+        }
+        LOG("transfer request accepted by user");
 
-    LOG("starting transfer receive");
-    receive_files(transfer_request, std::move(*decryptor_opt));
-    LOG("transfer receieved and completed");
+        LOG("starting transfer receive");
+        receive_files(transfer_request, std::move(*decryptor_opt));
+        LOG("transfer receieved and completed");
+
+        break;
+    }
 }
 
 // Queries and returns the private ip address of this device to be used by the sender
@@ -95,7 +98,7 @@ std::string Receiver::get_private_ipv4_address(){
 
 // Waits for a successful connection to be established
 void Receiver::wait_for_connection(){
-    LOG("waiting for connection from sender");
+    if (socket_.is_open()) { socket_.close(); }
     std::string address = get_private_ipv4_address();
     const uint16_t port = acceptor_.local_endpoint().port();
     std::cout << "Listening for connection at " << address << " on port " << port << "..." << std::endl;
