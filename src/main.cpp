@@ -90,6 +90,20 @@ void handle_send(const std::vector<std::string>& args) {
 void handle_receive(const std::vector<std::string>& args) {
     LOG("handling receive command");
 
+    /*
+        Tried to pick a port number that was unreserved, unlikely to be used by other applications, and easy to type.
+        Found an interesting website to search port information: https://www.speedguide.net/ports.php
+
+        Was going to go with 50000, but this is used by many applications
+        Then looked at 500001, but it turns out that Discord uses ports 50001-50004
+        Tried 54321 but this is used by some software and unfortunately a bunch of malware
+        Also tried 55555 but this one is associated with some malware as well
+        Looked at 55000 but this is sometimes used by uTorrent and some other things as well
+        Then looked at 50505 and 51515 but these are used by some applications
+        Finally looked at 52525 and it had no documented existing users, so I picked this number
+    */
+    constexpr uint16_t DEFAULT_RECEIVER_PORT = 52525;
+
     if (args.size() > 1) {
         std::cerr << "trit: 'receive' only optionally takes a password.\n";
         std::cout << "usage: trit receive [password]\n";
@@ -97,7 +111,7 @@ void handle_receive(const std::vector<std::string>& args) {
     }
 
     // Using randomly generated unreserved port for receiver
-    uint16_t port = utils::generate_random_port();
+    uint16_t port = DEFAULT_RECEIVER_PORT;
     while(!utils::local_port_available(port)){
         port = utils::generate_random_port();
     }

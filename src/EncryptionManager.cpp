@@ -7,6 +7,7 @@ namespace {
 
 template <typename Transform>
 void process_chunks(
+    WorkerContext& ctx,
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& input_queue,
     std::atomic<bool>& input_done,
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& output_queue,
@@ -14,6 +15,7 @@ void process_chunks(
     Transform&& transform)
 {
     while (true) {
+        if(ctx.should_abort()){ return; }
         auto chunk_ptr_opt = input_queue.try_pop();
         if (chunk_ptr_opt) {
             auto chunk_ptr = std::move(*chunk_ptr_opt);
@@ -53,23 +55,25 @@ crypto::Decryptor& EncryptionManager::get_decryptor(){
 }
 
 void EncryptionManager::encrypt_chunks(
+    WorkerContext& ctx,
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& input_queue,
     std::atomic<bool>& input_done,
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& output_queue,
     std::atomic<bool>& output_done){
 
-    process_chunks(input_queue, input_done, output_queue, output_done,
-        [this](Chunk& c) { return encrypt_chunk(c); });
+    process_chunks(ctx, input_queue, input_done, output_queue, output_done,
+        [this](const Chunk& c) { return encrypt_chunk(c); });
 }
 
 void EncryptionManager::decrypt_chunks(
+    WorkerContext& ctx,
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& input_queue,
     std::atomic<bool>& input_done,
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& output_queue,
     std::atomic<bool>& output_done){
 
-    process_chunks(input_queue, input_done, output_queue, output_done,
-        [this](Chunk& c) { return decrypt_chunk(c); });
+    process_chunks(ctx, input_queue, input_done, output_queue, output_done,
+        [this](const Chunk& c) { return decrypt_chunk(c); });
 }
 
 std::unique_ptr<Chunk> EncryptionManager::encrypt_chunk(const Chunk& chunk){

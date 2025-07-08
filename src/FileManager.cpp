@@ -4,6 +4,7 @@
 #include <fstream>
 
 void FileManager::read_files_into_chunks(
+    WorkerContext& ctx,
     const TransferRequest& transfer_request,
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& output_queue,
     std::atomic<bool>& output_done){
@@ -12,29 +13,33 @@ void FileManager::read_files_into_chunks(
     uint32_t remaining_buffer_capacity = transfer_request.get_chunk_size();
     std::vector<uint8_t> buffer(transfer_request.get_chunk_size());
 
-    for(const auto file_info : transfer_request.get_file_infos()){
+    for(const auto& file_info : transfer_request.get_file_infos()){
+        if(ctx.should_abort()){ return; }
+
         std::filesystem::path file_path = std::filesystem::current_path() / file_info.relative_path;
         uint64_t file_size = std::filesystem::file_size(file_path);
         
         if(file_size != file_info.size){
-            throw std::runtime_error("File size mismatch: expected " + std::to_string(file_info.size) + " bytes, file size is " + std::to_string(file_size) + " bytes");
+            throw std::runtime_error("\nFile size mismatch: expected " + std::to_string(file_info.size) + " bytes, file size is " + std::to_string(file_size) + " bytes");
         }
 
         uint64_t remaining_file_data = file_size;
         std::ifstream file(file_path, std::ios::binary);
         if(!file){
-            throw std::runtime_error("Failed to open file: " + file_path.string());
+            throw std::runtime_error("\nFailed to open file: " + file_path.string());
         }
 
         // Chunks are a specific size, so multiple smaller files could be contained in one chunk
         // and larger files could be made up of multiple chunks
         while(remaining_file_data > 0){
+            if(ctx.should_abort()){ return; }
+
             const uint64_t bytes_to_read = std::min<uint64_t>(remaining_file_data, remaining_buffer_capacity);
             file.read(reinterpret_cast<char*>(buffer.data() + (buffer.size() - remaining_buffer_capacity)), bytes_to_read);
 
             auto bytes_read = file.gcount();
             if(bytes_read != bytes_to_read){
-                throw std::runtime_error("Did not read expected number of bytes");
+                throw std::runtime_error("\nDid not read expected number of bytes");
             }
 
             remaining_buffer_capacity -= bytes_read;
@@ -60,6 +65,7 @@ void FileManager::read_files_into_chunks(
 
 
 void FileManager::write_files_from_chunks(
+    WorkerContext& ctx,
     const TransferRequest& transfer_request,
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& input_queue,
     std::atomic<bool>& input_done,
@@ -82,6 +88,8 @@ void FileManager::write_files_from_chunks(
         if(!file){ throw std::runtime_error("Failed to open file: " + abs_path.string()); }
 
         while(remaining_file_data > 0){
+            if(ctx.should_abort()) { return; }
+            
             const int64_t bytes_to_write = std::min<uint64_t>(remaining_file_data, remaining_chunk_data);
             file.write(reinterpret_cast<const char*>(chunk_ptr->data() + chunk_offset), bytes_to_write);
 

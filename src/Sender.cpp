@@ -11,6 +11,7 @@
 #include "ProgressTracker.h"
 #include "CompressionManager.h"
 #include "EncryptionManager.h"
+#include "WorkerContext.h"
 #include "staging.h"
 
 Sender::Sender(const std::string& ip_address_str, const uint16_t port, const crypto::Key& key,const crypto::Salt& salt): 
@@ -127,14 +128,19 @@ void Sender::send_files(const TransferRequest& transfer_request, crypto::Encrypt
     std::atomic<bool> file_chunking_done(false);
     std::atomic<bool> encryption_done(false);
     std::atomic<uint32_t> chunks_sent(0);
+
+    WorkerContext ctx;
     
     FileManager file_chunker;
     std::thread chunker_thread([&](){
-        file_chunker.read_files_into_chunks(
-            transfer_request,
-            file_chunk_queue,
-            file_chunking_done
-        );
+        try{
+            file_chunker.read_files_into_chunks(
+                ctx,
+                transfer_request,
+                file_chunk_queue,
+                file_chunking_done
+            );
+        } catch (...){ ctx.handle_exception(); }
     });
 
     EncryptionManager chunk_encryptor(
@@ -144,33 +150,49 @@ void Sender::send_files(const TransferRequest& transfer_request, crypto::Encrypt
         std::move(encryptor)
     );
     std::thread encryption_thread([&](){
-        chunk_encryptor.encrypt_chunks(
-            file_chunk_queue,
-            file_chunking_done,
-            encrypted_chunk_queue,
-            encryption_done
-        );
+        try{
+            chunk_encryptor.encrypt_chunks(
+                ctx,
+                file_chunk_queue,
+                file_chunking_done,
+                encrypted_chunk_queue,
+                encryption_done
+            );
+        } catch (...){ ctx.handle_exception(); }
     });
 
     TransferManager chunk_sender;
     std::thread transmission_thread([&](){
-        chunk_sender.send_chunks(
-            socket_,
-            encrypted_chunk_queue,
-            encryption_done,
-            chunks_sent
-        );
+        try{
+            chunk_sender.send_chunks(
+                ctx,
+                socket_,
+                encrypted_chunk_queue,
+                encryption_done,
+                chunks_sent
+            );
+        } catch (...){ ctx.handle_exception(); }
     });
 
     ProgressTracker<uint32_t> progress_tracker("Chunks sent", num_chunks);
     std::thread progress_thread([&](){
-        progress_tracker.start(chunks_sent);
+        try{
+            progress_tracker.start(ctx, chunks_sent);
+        } catch (...){ ctx.handle_exception(); }
     });
 
     chunker_thread.join();
     encryption_thread.join();
     transmission_thread.join();
     progress_thread.join();
+
+    // Handling if the transfer stopped due to an exception in any of the workers
+    try{
+        ctx.rethrow_if_exception();
+    } catch (const std::exception& e) {
+        std::cerr << "Transfer failed: " << e.what() << '\n';
+        return;
+    }
 
     auto end_time = std::chrono::system_clock::now();
     auto time_elapsed = std::chrono::duration<double>(end_time-start_time);

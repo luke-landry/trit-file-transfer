@@ -201,14 +201,20 @@ void Receiver::receive_files(const TransferRequest& transfer_request, crypto::De
     std::atomic<bool> decryption_done(false);
     std::atomic<uint32_t> chunks_written(0);
 
+    WorkerContext ctx;
+
     TransferManager chunk_receiver;
     std::thread receiver_thread([&](){
-        chunk_receiver.receive_chunks(
-            socket_,
-            received_chunk_queue,
-            chunk_reception_done,
-            transfer_request.get_num_chunks()
-        );
+        try{
+            chunk_receiver.receive_chunks(
+                ctx,
+                socket_,
+                received_chunk_queue,
+                chunk_reception_done,
+                num_chunks
+            );
+        } catch (...){ ctx.handle_exception(); }
+        
     });
 
     EncryptionManager chunk_decryptor(
@@ -218,32 +224,48 @@ void Receiver::receive_files(const TransferRequest& transfer_request, crypto::De
         std::move(decryptor)
     );
     std::thread decryption_thread([&](){
-        chunk_decryptor.decrypt_chunks(
-            received_chunk_queue,
-            chunk_reception_done,
-            decrypted_chunk_queue,
-            decryption_done
-        );
+        try {
+            chunk_decryptor.decrypt_chunks(
+                ctx,
+                received_chunk_queue,
+                chunk_reception_done,
+                decrypted_chunk_queue,
+                decryption_done
+            );
+        } catch (...){ ctx.handle_exception(); }
     });
 
     FileManager file_writer;
     std::thread writer_thread([&](){
-        file_writer.write_files_from_chunks(transfer_request,
-            decrypted_chunk_queue,
-            decryption_done,
-            chunks_written
-        );
+        try{
+            file_writer.write_files_from_chunks(
+                ctx,
+                transfer_request,
+                decrypted_chunk_queue,
+                decryption_done,
+                chunks_written
+            );
+        } catch (...) {ctx.handle_exception(); }
     });
 
     ProgressTracker progress_tracker("Chunks written", num_chunks);
     std::thread progress_thread([&](){
-        progress_tracker.start(chunks_written);
+        try {
+            progress_tracker.start(ctx, chunks_written);
+        } catch (...) {ctx.handle_exception(); }
     });
 
     receiver_thread.join();
     decryption_thread.join();
     writer_thread.join();
     progress_thread.join();
+
+    try{
+        ctx.rethrow_if_exception();
+    } catch (const std::exception& e) {
+        std::cerr << "Transfer failed: " << e.what() << '\n';
+        return;
+    }
 
     auto end_time = std::chrono::system_clock::now();
     auto time_elapsed = std::chrono::duration<double>(end_time-start_time);

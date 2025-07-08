@@ -15,12 +15,14 @@ chunk data          [<= 65535 bytes]
 */
 
 void TransferManager::send_chunks(
+    WorkerContext& ctx,
     asio::ip::tcp::socket& socket,
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& input_queue,
     std::atomic<bool>& input_done,
     std::atomic<uint32_t>& chunks_sent){
 
     while(true){
+        if(ctx.should_abort()){ return; }
         auto chunk_ptr_opt = input_queue.try_pop();
         if(chunk_ptr_opt){
             const Chunk& chunk = *chunk_ptr_opt.value();
@@ -50,12 +52,14 @@ void TransferManager::send_chunks(
 }
 
 void TransferManager::receive_chunks(
+    WorkerContext& ctx,
     asio::ip::tcp::socket& socket,
     BoundedThreadSafeQueue<std::unique_ptr<Chunk>>& output_queue,
     std::atomic<bool>& output_done,
     uint32_t num_chunks){
 
     for(uint32_t i = 0; i < num_chunks; ++i){
+        if(ctx.should_abort()){ return; }
         uint64_t sequence_num;
         asio::read(socket, asio::buffer(&sequence_num, sizeof(sequence_num)));
 
