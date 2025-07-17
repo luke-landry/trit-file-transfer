@@ -109,10 +109,10 @@ void handle_receive(const std::vector<std::string>& args) {
         std::cout << "usage: trit receive [password]\n";
         exit(1);
     }
-
-    // Using randomly generated unreserved port for receiver
+    
     uint16_t port = DEFAULT_RECEIVER_PORT;
     while(!utils::local_port_available(port)){
+        // Using randomly generated unreserved port for receiver if default is in use
         port = utils::generate_random_port();
     }
 
