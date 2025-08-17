@@ -1,6 +1,6 @@
 build/
 bin/
 .vscode/
-demo/
-dest/
+send/
+recv/
 test.txt

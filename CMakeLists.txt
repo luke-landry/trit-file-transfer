@@ -31,6 +31,7 @@ add_executable(trit
     src/CompressionManager.cpp
     src/EncryptionManager.cpp
     src/WorkerContext.cpp
+    src/TcpSocket.cpp
 )
 
 target_include_directories(trit PRIVATE ${LIBSODIUM_INCLUDE_DIRS})

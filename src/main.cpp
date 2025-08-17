@@ -109,7 +109,13 @@ void handle_receive(const std::vector<std::string>& args) {
         std::cout << "usage: trit receive [password]\n";
         exit(1);
     }
-    
+
+    std::optional<std::string> local_ip = utils::get_local_ipv4_address();
+    if (!local_ip) {
+        std::cerr << "trit: could not determine local IP address\n";
+        exit(1);
+    }
+
     uint16_t port = DEFAULT_RECEIVER_PORT;
     while(!utils::local_port_available(port)){
         // Using randomly generated unreserved port for receiver if default is in use
@@ -123,7 +129,7 @@ void handle_receive(const std::vector<std::string>& args) {
     LOG("initialized sodium");
 
     LOG(std::string("receiving on port ") + std::to_string(port));
-    Receiver receiver(port, password);
+    Receiver receiver(*local_ip, port, password);
     receiver.start_session();
 }
 

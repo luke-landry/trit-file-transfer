@@ -14,10 +14,9 @@
 #include "WorkerContext.h"
 #include "staging.h"
 
-Sender::Sender(const std::string& ip_address_str, const uint16_t port, const crypto::Key& key,const crypto::Salt& salt): 
-    io_context_(),
-    receiver_endpoint_(asio::ip::address::from_string(ip_address_str), port),
-    socket_(io_context_),
+Sender::Sender(const std::string& receiver_ip, const uint16_t receiver_port, const crypto::Key& key,const crypto::Salt& salt): 
+    receiver_ip_(receiver_ip),
+    receiver_port_(receiver_port),
     key_(key),
     salt_(salt) {}
 
@@ -56,10 +55,9 @@ void Sender::start_session(){
 }
 
 void Sender::connect_to_receiver(){
-    const std::string receiver_address_str = receiver_endpoint_.address().to_string();
-    uint16_t receiver_port = receiver_endpoint_.port();
-    socket_.connect(receiver_endpoint_);
-    std::cout << "Connected to " << receiver_address_str << ":" << receiver_port << std::endl;
+    receiver_socket_.connect(receiver_ip_, receiver_port_);
+    std::cout << "Connected to " << receiver_ip_ << ":" << receiver_port_ << std::endl;
+
 }
 
 // Handshake verifies matching keys were derived between sender and receiver (from matching passwords)
@@ -68,7 +66,7 @@ void Sender::connect_to_receiver(){
 bool Sender::send_handshake(const crypto::Encryptor& encryptor){
     LOG("sending handshake");
     
-    asio::write(socket_, asio::buffer(salt_.data(), salt_.size()));
+    receiver_socket_.write(salt_.data(), salt_.size());
     LOG("sent salt");
 
     LOG("creating handshake nonce and cipher");
@@ -77,22 +75,22 @@ bool Sender::send_handshake(const crypto::Encryptor& encryptor){
     // LOG("nonce=" + utils::buffer_to_hex_string(nonce.data(), nonce.size()));
     // LOG("cipher=" + utils::buffer_to_hex_string(cipher.data(), cipher.size()));
 
-    asio::write(socket_, asio::buffer(nonce.data(), nonce.size()));
+    receiver_socket_.write(nonce.data(), nonce.size());
     LOG("handshake nonce sent");
 
-    asio::write(socket_, asio::buffer(cipher.data(), cipher.size()));
+    receiver_socket_.write(cipher.data(), cipher.size());
     LOG("handshake cipher sent");
 
     LOG("sending encryption header");
     const auto& header = encryptor.header();
-    asio::write(socket_, asio::buffer(header.data(), header.size()));
+    receiver_socket_.write(header.data(), header.size());
     // LOG("header=" + utils::buffer_to_hex_string(header.data(), header.size()));
 
     std::cout << "Handshake sent" << std::endl;
 
     // Get success/fail response
     uint8_t handshake_success_byte;
-    asio::read(socket_, asio::buffer(&handshake_success_byte, sizeof(handshake_success_byte)));
+    receiver_socket_.read(&handshake_success_byte, sizeof(handshake_success_byte));
     return static_cast<bool>(handshake_success_byte);
 }
 
@@ -104,13 +102,13 @@ bool Sender::send_transfer_request(const TransferRequest& transfer_request){
     // Serialize and then send transfer request to receiver
     std::vector<uint8_t> transfer_request_buffer = transfer_request.serialize();
     uint64_t transfer_request_buffer_size = transfer_request_buffer.size();
-    asio::write(socket_, asio::buffer(&transfer_request_buffer_size, sizeof(transfer_request_buffer_size)));
-    asio::write(socket_, asio::buffer(transfer_request_buffer));
+    receiver_socket_.write(&transfer_request_buffer_size, sizeof(transfer_request_buffer_size));
+    receiver_socket_.write(transfer_request_buffer.data(), transfer_request_buffer.size());
     std::cout << "Transfer request sent" << std::endl;
 
     // Get accept/deny response
     uint8_t request_accepted_byte;
-    asio::read(socket_, asio::buffer(&request_accepted_byte, sizeof(request_accepted_byte)));
+    receiver_socket_.read(&request_accepted_byte, sizeof(request_accepted_byte));
     return static_cast<bool>(request_accepted_byte);
 }
 
@@ -166,7 +164,7 @@ void Sender::send_files(const TransferRequest& transfer_request, crypto::Encrypt
         try{
             chunk_sender.send_chunks(
                 ctx,
-                socket_,
+                receiver_socket_,
                 encrypted_chunk_queue,
                 encryption_done,
                 chunks_sent

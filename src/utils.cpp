@@ -42,6 +42,21 @@ bool utils::is_valid_port(const std::string& port_str){
     return (port_ul >= 49152) && (port_ul <= 65535);
 }
 
+// Trick to get local IP address by creating a UDP socket and connecting to a remote endpoint (Google DNS)
+std::optional<std::string> utils::get_local_ipv4_address() {
+    try {
+        asio::io_context io;
+        asio::ip::udp::socket sock(io);
+        asio::ip::udp::endpoint dst(asio::ip::make_address_v4("8.8.8.8"), 53);
+        sock.connect(dst);
+        auto addr = sock.local_endpoint().address();
+        if (addr.is_v4()) return addr.to_string();
+        return std::nullopt; // could happen if system has no IPv4
+    } catch (const std::exception&) {
+        return std::nullopt; // no route or IPv4 found
+    }
+}
+
 // Randomly generates a non-reserved port number
 uint16_t utils::generate_random_port(){
     std::random_device rd;

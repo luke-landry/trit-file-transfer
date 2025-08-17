@@ -18,10 +18,9 @@
 #include <arpa/inet.h>
 #endif
 
-Receiver::Receiver(uint16_t port, const std::string& password):
-    io_context_(),
-    socket_(io_context_),
-    acceptor_(io_context_, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)),
+Receiver::Receiver(const std::string& ip, uint16_t port, const std::string& password):
+    ip_(ip),
+    port_(port),
     password_(password) {}
 
 void Receiver::start_session(){
@@ -55,56 +54,12 @@ void Receiver::start_session(){
     }
 }
 
-// Queries and returns the private ip address of this device to be used by the sender
-// The first valid address found (ipv4, not loopback, up, running) will be returned 
-std::string Receiver::get_private_ipv4_address(){
-    struct ifaddrs* ifaddr = nullptr;
-    if(getifaddrs(&ifaddr) == -1){
-        throw std::runtime_error("Could not get network interfaces");
-    }
-
-    for(struct ifaddrs* ifa = ifaddr; ifa != nullptr; ifa = ifa->ifa_next){
-
-        // Ignore interfaces without an address
-        if(ifa->ifa_addr == nullptr){ continue; }
-        
-        // Read flags of network interface
-        bool interface_address_is_ipv4 = ifa->ifa_addr->sa_family == AF_INET;
-        bool interface_is_loopback = ifa->ifa_flags & IFF_LOOPBACK;
-        bool interface_is_up = ifa->ifa_flags & IFF_UP;
-        bool interface_is_running = ifa->ifa_flags & IFF_RUNNING;
-
-        // If interface is valid, return its address as a string
-        if(interface_address_is_ipv4 && !interface_is_loopback && interface_is_up && interface_is_running){
-
-            // Reinterpret interface address specifically as ipv4 address (represented by sockaddr_in type)
-            struct sockaddr_in* ipv4_address = reinterpret_cast<struct sockaddr_in*>(ifa->ifa_addr);
-
-            // Buffer for raw ip address char string
-            char address_chstr_buffer[INET_ADDRSTRLEN];
-
-            // Convert ipv4 address to char string
-            // where the address binary value buffer is stored in ipv4_address's struct member 'sin_addr'
-            inet_ntop(AF_INET, &(ipv4_address->sin_addr), address_chstr_buffer, INET_ADDRSTRLEN);
-            freeifaddrs(ifaddr);
-            return std::string(address_chstr_buffer);
-        }
-    }
-
-    // No valid ip address was found
-    freeifaddrs(ifaddr);
-    throw std::runtime_error("No valid IP address found");
-}
-
 // Waits for a successful connection to be established
 void Receiver::wait_for_connection(){
-    if (socket_.is_open()) { socket_.close(); }
-    std::string address = get_private_ipv4_address();
-    const uint16_t port = acceptor_.local_endpoint().port();
-    std::cout << "Listening for connection at " << address << " on port " << port << "..." << std::endl;
-    acceptor_.accept(socket_);
-    std::string sender_address = socket_.remote_endpoint().address().to_string();
-    std::cout << "Connected to " << sender_address << std::endl;
+    if (sender_socket_.is_open()) { sender_socket_.close(); }
+    std::cout << "Listening for connection at " << ip_ << " on port " << port_ << "..." << std::endl;
+    TcpSocket::accept(port_, sender_socket_);
+    std::cout << "Connected to " << sender_socket_.remote_endpoint_address() << " on port " << sender_socket_.remote_endpoint_port() << std::endl;
 }
 
 // Handshake format: salt, nonce, cipher, header
@@ -113,7 +68,7 @@ bool Receiver::receive_handshake(std::optional<crypto::Decryptor>& decryptor_opt
 
     LOG("receiving salt");
     std::array<uint8_t, crypto::SALT_SIZE> salt_buffer;
-    asio::read(socket_, asio::buffer(salt_buffer.data(), salt_buffer.size()));
+    sender_socket_.read(salt_buffer.data(), salt_buffer.size());
     crypto::Salt salt(salt_buffer);
 
     // LOG("salt=" + utils::buffer_to_hex_string(salt.data(), salt.size()));
@@ -125,24 +80,24 @@ bool Receiver::receive_handshake(std::optional<crypto::Decryptor>& decryptor_opt
 
     LOG("receiving handshake nonce");
     std::array<uint8_t, crypto::NONCE_SIZE> nonce_buffer;
-    asio::read(socket_, asio::buffer(nonce_buffer.data(), nonce_buffer.size()));
+    sender_socket_.read(nonce_buffer.data(), nonce_buffer.size());
     crypto::Nonce nonce(nonce_buffer);
     // LOG("nonce=" + utils::buffer_to_hex_string(nonce.data(), nonce.size()));
 
     LOG("receiving handshake cipher");
     std::array<uint8_t, crypto::HANDSHAKE_CIPHERTEXT_SIZE> ciphertext;
-    asio::read(socket_, asio::buffer(ciphertext.data(), ciphertext.size()));
+    sender_socket_.read(ciphertext.data(), ciphertext.size());
     // LOG("ciphertext=" + utils::buffer_to_hex_string(ciphertext.data(), ciphertext.size()));
 
     LOG("receiving encryption header");
     std::array<uint8_t, crypto::HEADER_SIZE> header;
-    asio::read(socket_, asio::buffer(header.data(), header.size()));
+    sender_socket_.read(header.data(), header.size());
     // LOG("header=" + utils::buffer_to_hex_string(header.data(), header.size()));
 
     bool handshake_success = crypto::verify_handshake_tag(key, nonce, ciphertext);
     if (handshake_success) { decryptor_opt.emplace(key, header); }
     uint8_t response_byte = handshake_success ? 1 : 0;
-    asio::write(socket_, asio::buffer(&response_byte, sizeof(response_byte)));
+    sender_socket_.write(&response_byte, sizeof(response_byte));
     return handshake_success;
 }
 
@@ -171,9 +126,9 @@ bool Receiver::receive_handshake(std::optional<crypto::Decryptor>& decryptor_opt
 TransferRequest Receiver::receive_transfer_request(){
     std::cout << "Awaiting file transfer request..." << std::endl;
     uint64_t transfer_request_buffer_size;
-    asio::read(socket_, asio::buffer(&transfer_request_buffer_size, sizeof(transfer_request_buffer_size)));
+    sender_socket_.read(&transfer_request_buffer_size, sizeof(transfer_request_buffer_size));
     std::vector<uint8_t> transfer_request_buffer(transfer_request_buffer_size);
-    asio::read(socket_, asio::buffer(transfer_request_buffer));
+    sender_socket_.read(transfer_request_buffer.data(), transfer_request_buffer.size());
     return TransferRequest::deserialize(transfer_request_buffer);
 }
 
@@ -182,7 +137,7 @@ bool Receiver::accept_transfer_request(const TransferRequest& transfer_request){
     char choice = utils::input<char>("Accept transfer request? (y/n)", {'y', 'n'});
     bool request_accepted = choice == 'y';
     uint8_t request_accepted_byte = request_accepted;
-    asio::write(socket_, asio::buffer(&request_accepted_byte, sizeof(request_accepted_byte)));
+    sender_socket_.write(&request_accepted_byte, sizeof(request_accepted_byte));
     std::cout << ((request_accepted ? "Transfer accepted" : "Transfer denied")) << std::endl;
     return request_accepted;
 }
@@ -208,7 +163,7 @@ void Receiver::receive_files(const TransferRequest& transfer_request, crypto::De
         try{
             chunk_receiver.receive_chunks(
                 ctx,
-                socket_,
+                sender_socket_,
                 received_chunk_queue,
                 chunk_reception_done,
                 num_chunks

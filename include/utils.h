@@ -10,6 +10,7 @@
 #include <limits>
 #include <filesystem>
 #include <unordered_set>
+#include <optional>
 
 #define LOG(msg) utils::log(std::string(__FUNCTION__) + ": " + std::string(msg))
 
@@ -22,6 +23,7 @@ namespace utils {
     // Non-template function declarations
     bool is_valid_ip_address(const std::string& ip);
     bool is_valid_port(const std::string& port);
+    std::optional<std::string> get_local_ipv4_address();
     uint16_t generate_random_port();
     bool local_port_available(uint16_t port);
     std::vector<std::string> string_split(const std::string& str);

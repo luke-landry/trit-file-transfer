@@ -1,23 +1,23 @@
 #ifndef SENDER_H
 #define SENDER_H
 
-#include <asio.hpp>
 #include <string>
+#include "TcpSocket.h"
 #include "crypto.h"
 
 #include "TransferRequest.h"
 
 class Sender {
     public:
-        Sender(const std::string& recipient_ip_address_str, const uint16_t recipient_port, const crypto::Key& key, const crypto::Salt& salt);
+        Sender(const std::string& receiver_ip, const uint16_t receiver_port, const crypto::Key& key, const crypto::Salt& salt);
         void start_session();
 
     private:
-        asio::io_context io_context_;
-        asio::ip::tcp::endpoint receiver_endpoint_;
-        asio::ip::tcp::socket socket_;
+        const std::string receiver_ip_;
+        const uint16_t receiver_port_;
         const crypto::Key key_;
         const crypto::Salt salt_;
+        TcpSocket receiver_socket_;
 
         void connect_to_receiver();
         bool send_handshake(const crypto::Encryptor& encryptor);

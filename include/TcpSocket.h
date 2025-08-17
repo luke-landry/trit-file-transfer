@@ -1,44 +1,37 @@
 #ifndef TCPSOCKET_H
 #define TCPSOCKET_H
 
-#include <string>
-#include <vector>
-#include <cstdint>
-#include <stdexcept>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
+#include <asio.hpp>
+#include <chrono>
+#include <cstddef>
+#include <system_error>
 
+// Simple blocking TCP socket wrapper
 class TcpSocket {
 public:
-
     TcpSocket();
-    TcpSocket(int fd);
     ~TcpSocket();
 
-    // Sockets should not be copied, only moved
+    // non-copyable, non-movable
     TcpSocket(const TcpSocket&) = delete;
     TcpSocket& operator=(const TcpSocket&) = delete;
-    TcpSocket(TcpSocket&& other) noexcept;
-    TcpSocket& operator=(TcpSocket&& other) noexcept;
+    TcpSocket(TcpSocket&&) = delete;
+    TcpSocket& operator=(TcpSocket&&) = delete;
 
-
-    void connect_to(const std::string& ip, uint16_t port);
-    void bind_and_listen(uint16_t port);
-    TcpSocket accept_connection();
-
-    void send_data(const void* data, size_t size);
-    void receive_data(void* data, size_t size);
-
-    // Returns remote IP address (after connected/accepted)
-    std::string remote_ip() const;
-
+    void connect(const std::string& ip, uint16_t port);
+    static void accept(uint16_t port, TcpSocket& client_socket);
+    void read(void* buf, std::size_t len);
+    void write(const void* buf, std::size_t len);
     void close();
+    bool is_open() const;
+
+    std::string remote_endpoint_address() const;
+    uint16_t remote_endpoint_port() const;
 
 private:
-    int sock_fd_;
-    void assert_valid() const;
+    asio::io_context io_context_;
+    asio::ip::tcp::socket socket_;
+    asio::ip::tcp::endpoint endpoint_;
 };
 
 #endif // TCPSOCKET_H
