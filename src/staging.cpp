@@ -158,7 +158,9 @@ std::vector<std::string> normalize_patterns(const std::vector<std::string>& inpu
 
 } // anonymous namespace
 
-void staging::stage(const std::vector<std::string>& file_patterns){
+namespace staging {
+    
+void stage(const std::vector<std::string>& file_patterns){
     auto staged_files = load_staged_files();
     const auto files_in_cwd = get_files_in_cwd();
     const auto normalized_patterns = normalize_patterns(file_patterns);
@@ -186,7 +188,7 @@ void staging::stage(const std::vector<std::string>& file_patterns){
     list_files(files_to_stage);
 }
 
-void staging::unstage(const std::vector<std::string>& file_patterns){
+void unstage(const std::vector<std::string>& file_patterns){
     auto staged_files = load_staged_files();
     const auto normalized_patterns = normalize_patterns(file_patterns);
     const auto files_to_unstage = match_file_patterns_to_paths(normalized_patterns, staged_files);
@@ -200,7 +202,7 @@ void staging::unstage(const std::vector<std::string>& file_patterns){
     list_files(files_to_unstage);
 }
 
-void staging::list(){
+void list(){
     auto staged_files = load_staged_files(); 
     if(staged_files.empty()){
         std::cout << "No files are currently staged." << std::endl;
@@ -210,7 +212,7 @@ void staging::list(){
     list_files(staged_files);
 }
 
-void staging::clear(){
+void clear(){
     std::error_code ec;
     const auto path = get_staging_file_path();
 
@@ -231,7 +233,7 @@ void staging::clear(){
     }
 }
 
-void staging::help() {
+void help() {
     std::cout << "Commands:\n";
     std::cout << "  trit add <file_pattern>...          Stage file(s) for transfer\n";
     std::cout << "  trit drop <file_pattern>...         Unstage previously staged file(s)\n";
@@ -249,6 +251,8 @@ void staging::help() {
     std::cout << "  ?               Matches any single character (e.g., 'f?o.txt' matches 'foo.txt', 'fao.txt')\n\n";
 }
 
-std::unordered_set<std::filesystem::path> staging::get_staged_files(){
+std::unordered_set<std::filesystem::path> get_staged_files(){
     return load_staged_files();
 }
+
+} // namespace staging

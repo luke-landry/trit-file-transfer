@@ -10,7 +10,9 @@
 
 #include "utils.h"
 
-bool utils::is_valid_ip_address(const std::string& ip_str){
+namespace utils {
+
+bool is_valid_ip_address(const std::string& ip_str){
     std::error_code ec;
 
     // Using asio built-in checking for validating IP address string
@@ -19,7 +21,7 @@ bool utils::is_valid_ip_address(const std::string& ip_str){
     return !ec;
 }
 
-bool utils::is_valid_port(const std::string& port_str){
+bool is_valid_port(const std::string& port_str){
 
     if(port_str.empty()){
         return false;
@@ -43,7 +45,7 @@ bool utils::is_valid_port(const std::string& port_str){
 }
 
 // Trick to get local IP address by creating a UDP socket and connecting to a remote endpoint (Google DNS)
-std::optional<std::string> utils::get_local_ipv4_address() {
+std::optional<std::string> get_local_ipv4_address() {
     try {
         asio::io_context io;
         asio::ip::udp::socket sock(io);
@@ -58,7 +60,7 @@ std::optional<std::string> utils::get_local_ipv4_address() {
 }
 
 // Randomly generates a non-reserved port number
-uint16_t utils::generate_random_port(){
+uint16_t generate_random_port(){
     std::random_device rd;
     std::mt19937 gen(rd());
 
@@ -68,7 +70,7 @@ uint16_t utils::generate_random_port(){
     return distribution(gen);
 }
 
-bool utils::local_port_available(uint16_t port){
+bool local_port_available(uint16_t port){
     asio::io_context io_context;
     asio::error_code ec;
     asio::ip::tcp::acceptor acceptor(io_context);
@@ -80,7 +82,7 @@ bool utils::local_port_available(uint16_t port){
 }
 
 // Retuns a vector of strings delimited by whitespace from the given string
-std::vector<std::string> utils::string_split(const std::string& str){
+std::vector<std::string> string_split(const std::string& str){
     std::istringstream iss(str);
     std::vector<std::string> words;
     std::string word;
@@ -95,7 +97,7 @@ std::vector<std::string> utils::string_split(const std::string& str){
 // Specializing input template function for string where getline is used 
 // instead of cin so that entire string line is captured
 template <>
-std::string utils::input<std::string>(const std::string& prompt, const std::vector<std::string>& expected_values){
+std::string input<std::string>(const std::string& prompt, const std::vector<std::string>& expected_values){
     bool input_valid = false;
     std::string input;
 
@@ -119,12 +121,12 @@ std::string utils::input<std::string>(const std::string& prompt, const std::vect
 
 // Specialization of serialization function template for std::string
 template <>
-void utils::serialize<std::string>(const std::string& str, std::vector<uint8_t>& buffer){
+void serialize<std::string>(const std::string& str, std::vector<uint8_t>& buffer){
     // Insert the chars of the string into the byte vector buffer
     buffer.insert(buffer.end(), str.begin(), str.end());
 }
 
-std::string utils::buffer_to_hex_string(const uint8_t* buffer, const size_t size) {
+std::string buffer_to_hex_string(const uint8_t* buffer, const size_t size) {
     std::ostringstream oss;
 
     // Set hex output format with 2 digits, zero-filled
@@ -155,7 +157,7 @@ std::string utils::buffer_to_hex_string(const uint8_t* buffer, const size_t size
 // Specialization of deserialization function template for std::string
 // Caller must resize out_value string to their desired length before calling this function
 template<>
-std::vector<uint8_t>::const_iterator utils::deserialize<std::string>(const std::vector<uint8_t>::const_iterator it, const std::vector<uint8_t>::const_iterator end, std::string& out_value){
+std::vector<uint8_t>::const_iterator deserialize<std::string>(const std::vector<uint8_t>::const_iterator it, const std::vector<uint8_t>::const_iterator end, std::string& out_value){
 
     size_t string_size = out_value.size();
     auto buffer_distance = end - it;
@@ -169,7 +171,7 @@ std::vector<uint8_t>::const_iterator utils::deserialize<std::string>(const std::
     return it + string_size;
 }
 
-std::string utils::format_data_size(uint64_t size_in_bytes){
+std::string format_data_size(uint64_t size_in_bytes){
 
     if(size_in_bytes == 0){
         return "0 B";
@@ -200,14 +202,14 @@ std::string utils::format_data_size(uint64_t size_in_bytes){
     return unit_value_oss.str() + units[power_of_1000];
 }
 
-std::string utils::get_timestamp(const std::string& format){
+std::string get_timestamp(const std::string& format){
     time_t  current_time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::ostringstream timestamp;
     timestamp << std::put_time(std::localtime(&current_time), format.c_str());
     return timestamp.str();
 }
 
-void utils::log(const std::string& message) {
+void log(const std::string& message) {
     // Appending PID to log to allow multiple trit process logs at the same time
     // TODO determine permanent solution or cleanup strategy
     static const std::filesystem::path log_path = 
@@ -225,24 +227,24 @@ void utils::log(const std::string& message) {
         }
     }
 
-    ofs << "[" << utils::get_timestamp("%T") << "] " << message << std::endl;
+    ofs << "[" << get_timestamp("%T") << "] " << message << std::endl;
 }
 
-std::filesystem::path utils::relative_to_cwd(const std::filesystem::path& path){
+std::filesystem::path relative_to_cwd(const std::filesystem::path& path){
     static auto cwd = std::filesystem::current_path();
     return std::filesystem::relative(path, cwd);
 }
 
-std::unordered_set<std::filesystem::path> utils::relative_to_cwd(const std::unordered_set<std::filesystem::path>& paths){
+std::unordered_set<std::filesystem::path> relative_to_cwd(const std::unordered_set<std::filesystem::path>& paths){
     std::unordered_set<std::filesystem::path> rel_paths;
     rel_paths.reserve(paths.size());
     for(const auto& path: paths){
-        rel_paths.insert(utils::relative_to_cwd(path));
+        rel_paths.insert(relative_to_cwd(path));
     }
     return rel_paths;
 }
 
-std::string utils::str_join(const std::vector<std::string>& strings, const std::string& delimiter){
+std::string str_join(const std::vector<std::string>& strings, const std::string& delimiter){
     std::ostringstream oss;
     for (auto it = strings.begin(); it != strings.end(); ++it) {
         oss << *it;
@@ -252,3 +254,5 @@ std::string utils::str_join(const std::vector<std::string>& strings, const std::
     }
     return oss.str();
 }
+
+} // namespace utils
