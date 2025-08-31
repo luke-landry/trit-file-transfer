@@ -56,24 +56,36 @@ void unlock_staging_file() {
     }
 }
 
+class StagingLock {
+public:
+    StagingLock() {
+        if (!lock_staging_file()) {
+            throw std::runtime_error("Staging file is already locked");
+        }
+    }
+    
+    ~StagingLock() {
+        unlock_staging_file();
+    }
+    
+    // Non-copyable, non-movable
+    StagingLock(const StagingLock&) = delete;
+    StagingLock& operator=(const StagingLock&) = delete;
+};
+
 std::unordered_set<std::filesystem::path> load_staged_files(){
     std::error_code ec;
     std::filesystem::create_directories(get_staging_file_path().parent_path(), ec);
     if (ec) {
-        unlock_staging_file();
         throw std::runtime_error("Failed to create .trit directory: " + ec.message());
     }
 
-    if(!lock_staging_file()) {
-        unlock_staging_file();
-        throw std::runtime_error("Staging file is already locked by another process");
-    }
+    StagingLock lock;
 
     std::unordered_set<std::filesystem::path> staged_files;
     std::ifstream infile(get_staging_file_path());
 
     if (!infile) {
-        unlock_staging_file();
         return staged_files;
     }
 
@@ -96,7 +108,6 @@ std::unordered_set<std::filesystem::path> load_staged_files(){
         delete_staging_files();
     }
 
-    unlock_staging_file();
     return staged_files;
 }
 
@@ -108,9 +119,7 @@ void save_staged_files(const std::unordered_set<std::filesystem::path>& staged_f
         throw std::runtime_error("Failed to create .trit directory: " + ec.message());
     }
 
-    if(!lock_staging_file()) {
-        throw std::runtime_error("Staging file is already locked by another process");
-    }
+    StagingLock lock;
 
     std::ofstream outfile(get_staging_file_path(), std::ios::trunc);
     if (!outfile) {
@@ -120,8 +129,6 @@ void save_staged_files(const std::unordered_set<std::filesystem::path>& staged_f
     for (const auto& path : staged_files) {
         outfile << path.string() << '\n';
     }
-
-    unlock_staging_file();
 }
 
 void list_files(const std::unordered_set<std::filesystem::path>& files){

@@ -15,7 +15,10 @@ void process_chunks(
     Transform&& transform)
 {
     while (true) {
-        if(ctx.should_abort()){ return; }
+        if(ctx.should_abort()){
+            output_done.store(true);
+            return;
+        }
         auto chunk_ptr_opt = input_queue.try_pop();
         if (chunk_ptr_opt) {
             auto chunk_ptr = std::move(*chunk_ptr_opt);

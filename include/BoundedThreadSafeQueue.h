@@ -5,11 +5,16 @@
 #include <mutex>
 #include <condition_variable>
 #include <optional>
+#include <stdexcept>
 
 template<typename T>
 class BoundedThreadSafeQueue{
     public:
-        BoundedThreadSafeQueue(size_t capacity): capacity_(capacity) {}
+        BoundedThreadSafeQueue(size_t capacity): capacity_(capacity) {
+            if(capacity_ == 0){
+                throw std::logic_error("Queue capacity must be greater than 0");
+            }
+        }
 
         // Only allowed passing rvalues to force not copying objects, only moving allowed
         void push(T&& elem){
@@ -45,25 +50,25 @@ class BoundedThreadSafeQueue{
             return elem;
         }
 
-        bool empty(){
+        bool empty() const {
             std::lock_guard<std::mutex> lock(mutex_);
             return queue_.empty();
         }
 
-        bool full(){
+        bool full() const {
             std::lock_guard<std::mutex> lock(mutex_);
             return queue_.size() >= capacity_;
         }
 
-        size_t size(){
+        size_t size() const {
             std::lock_guard<std::mutex> lock(mutex_);
             return queue_.size();
         }
 
     private:
-        size_t capacity_;
+        const size_t capacity_;
         std::queue<T> queue_;
-        std::mutex mutex_;
+        mutable std::mutex mutex_;
         std::condition_variable not_empty_;
         std::condition_variable not_full_;
 };

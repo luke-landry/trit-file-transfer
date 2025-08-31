@@ -14,7 +14,10 @@ void FileManager::read_files_into_chunks(
     std::vector<uint8_t> buffer(transfer_request.get_chunk_size());
 
     for(const auto& file_info : transfer_request.get_file_infos()){
-        if(ctx.should_abort()){ return; }
+        if(ctx.should_abort()){
+            output_done.store(true);
+            return;
+        }
 
         std::filesystem::path file_path = std::filesystem::current_path() / file_info.relative_path;
         uint64_t file_size = std::filesystem::file_size(file_path);
@@ -32,7 +35,10 @@ void FileManager::read_files_into_chunks(
         // Chunks are a specific size, so multiple smaller files could be contained in one chunk
         // and larger files could be made up of multiple chunks
         while(remaining_file_data > 0){
-            if(ctx.should_abort()){ return; }
+            if(ctx.should_abort()){
+                output_done.store(true);
+                return;
+            }
 
             const uint64_t bytes_to_read = std::min<uint64_t>(remaining_file_data, remaining_buffer_capacity);
             file.read(reinterpret_cast<char*>(buffer.data() + (buffer.size() - remaining_buffer_capacity)), bytes_to_read);

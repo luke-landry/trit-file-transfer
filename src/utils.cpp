@@ -7,6 +7,7 @@
 #include <mutex>
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 
 #include "utils.h"
 

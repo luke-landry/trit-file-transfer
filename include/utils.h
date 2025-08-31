@@ -28,7 +28,6 @@ namespace utils {
     bool local_port_available(uint16_t port);
     std::vector<std::string> string_split(const std::string& str);
     std::string buffer_to_hex_string(const uint8_t* buffer, const size_t size);
-    uint64_t deserialize_uint(std::vector<uint8_t> buffer, uint8_t size);
     std::string format_data_size(uint64_t size_in_bytes);
     // format follows std::put_time format string
     std::string get_timestamp(const std::string& format);

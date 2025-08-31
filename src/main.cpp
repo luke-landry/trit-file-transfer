@@ -65,7 +65,7 @@ void handle_send(const std::vector<std::string>& args) {
     const std::string& port_str = args[1];
     if (!utils::is_valid_port(port_str)) {
         std::cerr << "trit: invalid port\n";
-        std::cout << "port must be a number between 1 and 65535\n";
+        std::cout << "port must be a number between 49152 and 65535\n";
         exit(1);
     }
     uint16_t port = std::stoi(port_str);

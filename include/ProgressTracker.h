@@ -4,6 +4,9 @@
 #include <string>
 #include <atomic>
 #include <iomanip>
+#include <sstream>
+
+#include "WorkerContext.h"
 
 template <typename T>
 class ProgressTracker {
