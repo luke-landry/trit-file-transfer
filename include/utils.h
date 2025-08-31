@@ -36,7 +36,7 @@ namespace utils {
     std::filesystem::path relative_to_cwd(const std::filesystem::path& path);
     std::unordered_set<std::filesystem::path> relative_to_cwd(const std::unordered_set<std::filesystem::path>& paths);
     std::string str_join(const std::vector<std::string>& strings, const std::string& delimiter);
-
+    
     // Template function definitions
 
     /*

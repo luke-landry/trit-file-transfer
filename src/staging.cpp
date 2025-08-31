@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <regex>
+#include <unistd.h>
 #include "utils.h"
 
 // Anonymous namespace to hide internal staging utility functions
@@ -10,15 +11,69 @@ namespace {
 
 const std::filesystem::path& get_staging_file_path() {
     static const std::filesystem::path path =
-        std::filesystem::temp_directory_path() / "trit" / "staged.txt";
+        std::filesystem::current_path() / ".trit" / "staged.txt";
     return path;
 }
 
+const std::filesystem::path& get_staging_lock_path() {
+    static const std::filesystem::path path =
+        std::filesystem::current_path() / ".trit" / "staging.lock";
+    return path;
+}
+
+void delete_staging_files() {
+    std::error_code ec;
+    std::filesystem::remove_all(get_staging_file_path().parent_path(), ec);
+    if (ec && ec != std::errc::no_such_file_or_directory) {
+        std::cerr << "Warning: Failed to remove .trit directory: " << ec.message() << '\n';
+    }
+}
+
+bool lock_staging_file() {
+    std::error_code ec;
+    
+    std::filesystem::create_directories(get_staging_lock_path().parent_path(), ec);
+    if (ec) {
+        std::cerr << "Failed to create .trit directory: " << ec.message() << '\n';
+        return false;
+    }
+
+    // Use std::ios::noreplace for exclusive creation (added in C++23)
+    std::ofstream lock_file(get_staging_lock_path(), std::ios::noreplace);
+    if (!lock_file) {
+        return false; // File already exists or other error
+    }
+    
+    lock_file << std::to_string(getpid()) << '\n';
+    return true;
+}
+
+void unlock_staging_file() {
+    std::error_code ec;
+    std::filesystem::remove(get_staging_lock_path(), ec);
+    if (ec && ec != std::errc::no_such_file_or_directory) {
+        std::cerr << "Warning: Failed to remove staging lock: " << ec.message() << '\n';
+    }
+}
+
 std::unordered_set<std::filesystem::path> load_staged_files(){
+    std::error_code ec;
+    std::filesystem::create_directories(get_staging_file_path().parent_path(), ec);
+    if (ec) {
+        unlock_staging_file();
+        throw std::runtime_error("Failed to create .trit directory: " + ec.message());
+    }
+
+    if(!lock_staging_file()) {
+        unlock_staging_file();
+        throw std::runtime_error("Staging file is already locked by another process");
+    }
+
     std::unordered_set<std::filesystem::path> staged_files;
     std::ifstream infile(get_staging_file_path());
 
     if (!infile) {
+        unlock_staging_file();
         return staged_files;
     }
 
@@ -37,6 +92,11 @@ std::unordered_set<std::filesystem::path> load_staged_files(){
         }
     }
 
+    if(staged_files.empty()) {
+        delete_staging_files();
+    }
+
+    unlock_staging_file();
     return staged_files;
 }
 
@@ -45,19 +105,23 @@ void save_staged_files(const std::unordered_set<std::filesystem::path>& staged_f
 
     std::filesystem::create_directories(get_staging_file_path().parent_path(), ec);
     if (ec) {
-        std::cerr << "Failed to create trit temporary directory: " << ec.message() << '\n';
-        return;
+        throw std::runtime_error("Failed to create .trit directory: " + ec.message());
+    }
+
+    if(!lock_staging_file()) {
+        throw std::runtime_error("Staging file is already locked by another process");
     }
 
     std::ofstream outfile(get_staging_file_path(), std::ios::trunc);
     if (!outfile) {
-        std::cerr << "Failed to open staging file for writing\n";
-        return;
+        throw std::runtime_error("Failed to open staging file for writing");
     }
 
     for (const auto& path : staged_files) {
         outfile << path.string() << '\n';
     }
+
+    unlock_staging_file();
 }
 
 void list_files(const std::unordered_set<std::filesystem::path>& files){
@@ -197,6 +261,12 @@ void unstage(const std::vector<std::string>& file_patterns){
         return;
     }
     for (const auto& file : files_to_unstage){ staged_files.erase(file); }
+
+    if(staged_files.empty()){
+        delete_staging_files();
+        return;
+    }
+
     save_staged_files(staged_files);
     std::cout << "Dropped staged files:" << std::endl;
     list_files(files_to_unstage);
@@ -206,6 +276,7 @@ void list(){
     auto staged_files = load_staged_files(); 
     if(staged_files.empty()){
         std::cout << "No files are currently staged." << std::endl;
+        delete_staging_files();
         return;
     }
     std::cout << "Staged files:" << std::endl;
@@ -225,12 +296,7 @@ void clear(){
         return;
     }
 
-    std::filesystem::remove(path, ec);
-    if (ec) {
-        std::cerr << "Failed to clear staged files: " << ec.message() << std::endl;
-    } else {
-        std::cout << "Cleared staged files" << std::endl;
-    }
+    delete_staging_files();
 }
 
 void help() {

@@ -4,3 +4,4 @@ bin/
 send/
 recv/
 test.txt
+.trit/

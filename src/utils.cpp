@@ -210,8 +210,6 @@ std::string get_timestamp(const std::string& format){
 }
 
 void log(const std::string& message) {
-    // Appending PID to log to allow multiple trit process logs at the same time
-    // TODO determine permanent solution or cleanup strategy
     static const std::filesystem::path log_path = 
         std::filesystem::temp_directory_path() / "trit" / ("log_" + std::to_string(getpid()) + ".txt");
     static std::ofstream ofs;

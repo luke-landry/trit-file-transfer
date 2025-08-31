@@ -28,7 +28,13 @@ void Sender::start_session(){
         return;
     }
 
-    connect_to_receiver();
+    try{
+        connect_to_receiver();
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to connect to receiver: " << e.what() << '\n';
+        return;
+    }
+
     LOG("connected to receiver");
     
     crypto::Encryptor encryptor(key_);
@@ -57,7 +63,6 @@ void Sender::start_session(){
 void Sender::connect_to_receiver(){
     receiver_socket_.connect(receiver_ip_, receiver_port_);
     std::cout << "Connected to " << receiver_ip_ << ":" << receiver_port_ << std::endl;
-
 }
 
 // Handshake verifies matching keys were derived between sender and receiver (from matching passwords)
@@ -198,4 +203,5 @@ void Sender::send_files(const TransferRequest& transfer_request, crypto::Encrypt
 
     std::cout << "Files sent, transfer complete!" << std::endl;
     std::cout << "Time elapsed: " << seconds_elapsed << "s" << std::endl;
+    staging::clear(); // Clear staged files after successful transfer
 }
