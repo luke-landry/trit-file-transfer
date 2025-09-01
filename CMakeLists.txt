@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION "3.10")
 
 project(trit)
 
-# Require C++23 for project
-set(CMAKE_CXX_STANDARD 23)
+# Require C++17 for project
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_compile_definitions(ASIO_STANDALONE)

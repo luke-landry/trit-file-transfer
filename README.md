@@ -74,3 +74,82 @@ cmake --build build
 
 ## Implementation
 ![alt text](images/File_Transfer_Pipeline.png "File Transfer Pipeline Diagram")
+
+### Staging System
+
+Trit uses a staging mechanism so users can queue files before sending.
+- Paths to the staging file (`staged.txt`) and a lock file (`staging.lock`) are saved under `.trit/` in the current working directory.
+- The CLI supports adding, dropping, listing, clearing, sending, and receiving staged files.
+- Flexible glob patterns are supported (e.g., `*`, `name.*`, `*.ext`).
+
+### Runtime Metadata & Logging
+
+Trit stores temporary runtime data in two locations:
+- Working directory: `.trit/staged.txt` and `.trit/staging.lock` for staging bookkeeping.
+- System temp directory: log file of latest execution at `tmp/trit/log.txt`.
+
+### Networking Layer
+
+Trit uses a lightweight blocking wrapper (`TcpSocket`) built on top of ASIO (standalone, non-Boost).
+- Provides cross-platform `connect`, `accept`, `read`, and `write` primitives.
+- Simplifies socket management while remaining platform-agnostic.
+
+### Custom Transfer Protocol
+
+#### Handshake & Encryption
+
+- The key is derived from the user-supplied password.
+- An authentication tag is appended to each encrypted chunk.
+- A mutual-authentication handshake occurs before file metadata exchange:
+    1. The sender encrypts a fixed tag with a random nonce, sending the salt, nonce, ciphertext, and stream header.
+    2. The receiver derives the key, verifies the tag, and replies with a success byte.
+
+#### Transfer Request
+
+Before data transfer begins, the sender sends a serialized `TransferRequest` containing:
+- File count and total transfer size
+- Chunk size used in this session
+- Per-file metadata (path, size), encoded with length-prefixed strings and fixed-width integers for compactness.
+
+#### Chunk Data
+Files are streamed as sequences of fixed-size chunks. Each chunk packet includes:
+- 8-byte sequence number
+- 1-byte compressed flag
+- 2-byte original size
+- 2-byte chunk size
+- Payload (≤ 65 535 bytes)
+
+### Transfer Pipeline
+
+Trit uses a multi-threaded producer-consumer pipeline for high-throughput transfers.
+
+**Sender:**
+- Reads files into buffers.
+- Splits large files / aggregates small files into chunks.
+- Encrypts chunks and sends over socket.
+- Uses bounded queues to decouple producer/consumer stages.
+- Tracks progress for throughput monitoring.
+
+**Receiver:**
+- Receives chunks from socket.
+- Decrypts and verifies integrity.
+- Reconstructs files, ensuring directories exist before writing.
+- Writes data to disk in parallel via synchronized queues.
+- Validates per-file sizes to ensure integrity.
+
+### File I/O Layer
+
+The `FileManager` handles efficient chunking and reconstruction:
+- Splits/aggregates files into fixed-size buffers.
+- Reassembles files from received chunks.
+- Ensures directory structure exists before writes.
+- Performs per-file integrity checks against declared sizes.
+
+### Compression (Unutilized)
+A compression layer was implemented with zlib to optionally reduce chunk sizes. The compressed flag in each packet was reserved for this purpose.
+
+However, testing showed that throughput decreased with compression:
+- CPU cost of compressing/decompressing outweighed bandwidth savings.
+- Many files (media, archives, executables) are already compressed.
+
+As a result, compression support remains defined in the protocol but is disabled and not integrated into the transfer pipeline.

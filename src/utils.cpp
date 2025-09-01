@@ -211,22 +211,27 @@ std::string get_timestamp(const std::string& format){
 }
 
 void log(const std::string& message) {
-    static const std::filesystem::path log_path = 
-        std::filesystem::temp_directory_path() / "trit" / ("log_" + std::to_string(getpid()) + ".txt");
+    static const std::filesystem::path log_path =
+        std::filesystem::temp_directory_path() / "trit" / "log.txt";
+
     static std::ofstream ofs;
     static std::mutex mutex;
     std::lock_guard<std::mutex> lock(mutex);
 
-    if(!ofs.is_open()){
-        std::filesystem::create_directories(log_path.parent_path());
+    if (!ofs.is_open()) {
+        std::error_code ec;
+        std::filesystem::create_directories(log_path.parent_path(), ec);
+
+        // Always overwrite (truncate) when first opening
         ofs.open(log_path, std::ios::trunc);
-        if(!ofs){
+        if (!ofs) {
             std::cerr << "Failed to open log file at " << log_path << "\n";
             return;
         }
     }
 
-    ofs << "[" << get_timestamp("%T") << "] " << message << std::endl;
+    ofs << "[" << get_timestamp("%H:%M:%S") << "] " << message << std::endl;
+    ofs.flush(); // forces write in case of crash
 }
 
 std::filesystem::path relative_to_cwd(const std::filesystem::path& path){

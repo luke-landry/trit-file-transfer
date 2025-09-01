@@ -3,7 +3,6 @@
 #include <fstream>
 #include <iostream>
 #include <regex>
-#include <unistd.h>
 #include "utils.h"
 
 // Anonymous namespace to hide internal staging utility functions
@@ -17,40 +16,38 @@ const std::filesystem::path& get_staging_file_path() {
 
 const std::filesystem::path& get_staging_lock_path() {
     static const std::filesystem::path path =
-        std::filesystem::current_path() / ".trit" / "staging.lock";
+        std::filesystem::current_path() / ".trit" / ".lock";
     return path;
-}
-
-void delete_staging_files() {
-    std::error_code ec;
-    std::filesystem::remove_all(get_staging_file_path().parent_path(), ec);
-    if (ec && ec != std::errc::no_such_file_or_directory) {
-        std::cerr << "Warning: Failed to remove .trit directory: " << ec.message() << '\n';
-    }
 }
 
 bool lock_staging_file() {
     std::error_code ec;
-    
+
     std::filesystem::create_directories(get_staging_lock_path().parent_path(), ec);
     if (ec) {
         std::cerr << "Failed to create .trit directory: " << ec.message() << '\n';
         return false;
     }
 
-    // Use std::ios::noreplace for exclusive creation (added in C++23)
-    std::ofstream lock_file(get_staging_lock_path(), std::ios::noreplace);
-    if (!lock_file) {
-        return false; // File already exists or other error
+    // Using a lock directory because directory existence check and creation are
+    // atomic on Linux
+
+    // Try to atomically create the lock directory
+    if (std::filesystem::create_directory(get_staging_lock_path(), ec)) {
+        return true; // acquired lock
     }
-    
-    lock_file << std::to_string(getpid()) << '\n';
-    return true;
+
+    if (ec == std::errc::file_exists) {
+        return false; // someone else holds the lock
+    }
+
+    std::cerr << "Failed to create lock directory: " << ec.message() << '\n';
+    return false;
 }
 
 void unlock_staging_file() {
     std::error_code ec;
-    std::filesystem::remove(get_staging_lock_path(), ec);
+    std::filesystem::remove_all(get_staging_lock_path(), ec);
     if (ec && ec != std::errc::no_such_file_or_directory) {
         std::cerr << "Warning: Failed to remove staging lock: " << ec.message() << '\n';
     }
@@ -72,6 +69,15 @@ public:
     StagingLock(const StagingLock&) = delete;
     StagingLock& operator=(const StagingLock&) = delete;
 };
+
+void delete_staging_files() {
+    StagingLock lock;
+    std::error_code ec;
+    std::filesystem::remove_all(get_staging_file_path().parent_path(), ec);
+    if (ec && ec != std::errc::no_such_file_or_directory) {
+        std::cerr << "Warning: Failed to remove .trit directory: " << ec.message() << '\n';
+    }
+}
 
 std::unordered_set<std::filesystem::path> load_staged_files(){
     std::error_code ec;
@@ -141,6 +147,9 @@ std::unordered_set<std::filesystem::path> get_files_in_cwd(){
     std::unordered_set<std::filesystem::path> cwd_file_paths;
     for(const auto& entry : std::filesystem::recursive_directory_iterator(std::filesystem::current_path())){
         if(std::filesystem::is_regular_file(entry.path())){
+            if (entry.path() == get_staging_file_path()) {
+                continue; // skip staging.txt metadata
+            }
             cwd_file_paths.insert(entry.path());
         }
     }
@@ -238,6 +247,9 @@ void stage(const std::vector<std::string>& file_patterns){
     auto files_to_stage = match_file_patterns_to_paths(normalized_patterns, files_in_cwd);
     if(files_to_stage.empty()){
         std::cout << "No files in current directory matched the provided pattern(s)" << std::endl;
+        if(staged_files.empty()){
+            delete_staging_files();
+        }
         return;
     }
     for(auto it = files_to_stage.begin(); it != files_to_stage.end();){
