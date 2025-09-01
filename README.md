@@ -78,14 +78,14 @@ cmake --build build
 ### Staging System
 
 Trit uses a staging mechanism so users can queue files before sending.
-- Paths to the staging file (`staged.txt`) and a lock file (`staging.lock`) are saved under `.trit/` in the current working directory.
+- Paths to the staging file (`staged.txt`) and a lock directory (`.lock`) are saved under `.trit/` in the current working directory.
 - The CLI supports adding, dropping, listing, clearing, sending, and receiving staged files.
 - Flexible glob patterns are supported (e.g., `*`, `name.*`, `*.ext`).
 
 ### Runtime Metadata & Logging
 
 Trit stores temporary runtime data in two locations:
-- Working directory: `.trit/staged.txt` and `.trit/staging.lock` for staging bookkeeping.
+- Working directory: `.trit/staged.txt` and `.trit/.lock` for staging bookkeeping.
 - System temp directory: log file of latest execution at `tmp/trit/log.txt`.
 
 ### Networking Layer
