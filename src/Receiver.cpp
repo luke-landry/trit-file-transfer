@@ -11,13 +11,6 @@
 #include "CompressionManager.h"
 #include "EncryptionManager.h"
 
-#ifdef __linux__
-#include <ifaddrs.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#endif
-
 Receiver::Receiver(const std::string& ip, uint16_t port, const std::string& password):
     ip_(ip),
     port_(port),
