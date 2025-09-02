@@ -3,7 +3,7 @@
 
 ## Installation
 ### Ubuntu
-1. Download the release binary
+1. Build the binary (will be available for download soon)
 2. Make the file executable with 
 ```bash 
 chmod +x trit 
