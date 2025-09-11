@@ -2,8 +2,19 @@
 **trit** is a CLI tool to transfer files over a local network using TCP/IP.
 
 ## Installation
+### Runtime Dependencies
+
+Ensure the following libraries are installed on your system
+- `zlib1g`
+- `libsodium`
+
+On Ubuntu/Debian, install them with:
+```bash
+sudo apt install zlib1g libsodium23
+```
+
 ### Ubuntu
-1. Build or download the binary
+1. Build (instructions below) or download the binary from the GitHub releases section
 2. Make the file executable with 
 ```bash 
 chmod +x trit 
@@ -27,6 +38,29 @@ The basic usage flow is as follows:
 4. Receiver accepts or denies the transfer request
 5. Sender begins reading and transferring the staged files if the request is accepted
 6. Receiver receives and writes the files
+
+#### Quick Start Example
+##### On receiver
+```bash
+trit receive mypassword
+>>> Waiting for connections...
+>>> Listening for connection at 10.0.0.189 on port 52525...
+... # waits until sender connects
+>>> Accept transfer request? (y/n)
+y
+... # transfer
+>>> Files received, transfer complete!
+```
+
+##### On sender
+```bash
+trit add myfile.txt
+trit send 10.0.0.189 52525 mypassword
+... # waits until transfer is accepted
+>>> Sending files...
+... # transfer
+>>> Files sent, transfer complete!
+```
 
 ### Commands
 Commands follow this syntax: `trit <command> [options]`
