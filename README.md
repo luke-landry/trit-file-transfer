@@ -3,7 +3,7 @@
 
 ## Installation
 ### Ubuntu
-1. Build the binary (will be available for download soon)
+1. Build or download the binary
 2. Make the file executable with 
 ```bash 
 chmod +x trit 
@@ -86,7 +86,7 @@ Trit uses a staging mechanism so users can queue files before sending.
 
 Trit stores temporary runtime data in two locations:
 - Working directory: `.trit/staged.txt` and `.trit/.lock` for staging bookkeeping.
-- System temp directory: log file of latest execution at `tmp/trit/log.txt`.
+- System temp directory: log file of latest execution at `/tmp/trit/log.txt`.
 
 ### Networking Layer
 
