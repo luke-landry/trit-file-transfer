@@ -14,7 +14,7 @@ sudo apt install zlib1g libsodium23
 ```
 
 ### Ubuntu
-1. Build (instructions below) or download the binary from the GitHub releases section
+1. Build using the instructions in the build section
 2. Make the file executable with 
 ```bash 
 chmod +x trit 
