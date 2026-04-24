@@ -1,5 +1,10 @@
 # trit-file-transfer
-**trit** is a CLI tool to transfer files over a local network using TCP/IP.
+**trit** is a git-inspired CLI tool for transferring files over a local network using TCP/IP.
+
+Like git, trit uses a **staging area**: you `add` files to a queue, inspect them with `list`, or `drop` any you don't want, then `send` them all at once when you're ready. Staging state is stored in a `.trit/` directory in your working directory.
+
+Transfers are encrypted end-to-end using [libsodium](https://doc.libsodium.org/). A shared password is used to derive an encryption key, and a mutual-authentication handshake is performed before any data is exchanged. Files are streamed through a multi-threaded producer-consumer pipeline, allowing reads, encryption, and socket writes to overlap for high throughput.
+
 
 ## Installation
 ### Runtime Dependencies
