@@ -3,7 +3,7 @@
 
 Like git, trit uses a **staging area**: you `add` files to a queue, inspect them with `list`, or `drop` any you don't want, then `send` them all at once when you're ready. Staging state is stored in a `.trit/` directory in your working directory.
 
-Transfers are encrypted end-to-end using [libsodium](https://doc.libsodium.org/). A shared password is used to derive an encryption key, and a mutual-authentication handshake is performed before any data is exchanged. Files are streamed through a multi-threaded producer-consumer pipeline, allowing reads, encryption, and socket writes to overlap for high throughput.
+Transfers are encrypted end-to-end using [libsodium](https://doc.libsodium.org/). A shared password is used to derive an encryption key, and an authentication handshake is performed before any data is exchanged. Files are streamed through a multi-threaded producer-consumer pipeline, allowing reads, encryption, and socket writes to overlap for high throughput.
 
 
 ## Installation
@@ -74,6 +74,7 @@ Commands follow this syntax: `trit <command> [options]`
 | `trit add <file_pattern>...`       | Stage file(s) for transfer                  |
 | `trit drop <file_pattern>...`      | Unstage previously staged file(s)           |
 | `trit list`                        | List currently staged files                 |
+| `trit clear`                       | Clear all staged files                      |
 | `trit send <ip> <port> [password]` | Send a file transfer request to a receiver  |
 | `trit receive [password]`          | Start listening for incoming file transfers |
 | `trit help`                        | Display help message                        |
@@ -117,9 +118,9 @@ cmake --build build
 ### Staging System
 
 Trit uses a staging mechanism so users can queue files before sending.
-- Paths to the staging file (`staged.txt`) and a lock directory (`.lock`) are saved under `.trit/` in the current working directory.
-- The CLI supports adding, dropping, listing, clearing, sending, and receiving staged files.
-- Flexible glob patterns are supported (e.g., `*`, `name.*`, `*.ext`).
+- Staged file paths and a lock directory (`.lock`) are stored under `.trit/` in the current working directory.
+- Staging state persists across invocations until a successful send, which clears it automatically.
+- Flexible glob patterns are supported for staging and unstaging (e.g., `*`, `name.*`, `**/*.ext`). Passing a directory is also supported and stages all files under it recursively.
 
 ### Runtime Metadata & Logging
 
@@ -137,18 +138,17 @@ Trit uses a lightweight blocking wrapper (`TcpSocket`) built on top of ASIO (sta
 
 #### Handshake & Encryption
 
-- The key is derived from the user-supplied password.
-- An authentication tag is appended to each encrypted chunk.
-- A mutual-authentication handshake occurs before file metadata exchange:
-    1. The sender encrypts a fixed tag with a random nonce, sending the salt, nonce, ciphertext, and stream header.
-    2. The receiver derives the key, verifies the tag, and replies with a success byte.
+- The key is derived from the password using Argon2 (`crypto_pwhash`) with a random salt.
+- File data is encrypted using XChaCha20-Poly1305 (`crypto_secretstream_xchacha20poly1305`), which appends a MAC to each encrypted chunk for authentication and integrity.
+- Before file metadata is exchanged, an authentication handshake verifies that both sides derived the same key:
+    1. The sender encrypts a fixed known tag with a random nonce and sends the salt, nonce, ciphertext, and stream header.
+    2. The receiver derives the key from the salt and password, decrypts and verifies the tag, then replies with a success or failure byte.
 
 #### Transfer Request
 
 Before data transfer begins, the sender sends a serialized `TransferRequest` containing:
-- File count and total transfer size
-- Chunk size used in this session
-- Per-file metadata (path, size), encoded with length-prefixed strings and fixed-width integers for compactness.
+- File count, total transfer size, chunk size, final chunk size, and chunk count
+- Per-file metadata (relative path, size), encoded with length-prefixed strings and fixed-width integers
 
 #### Chunk Data
 Files are streamed as sequences of fixed-size chunks. Each chunk packet includes:
@@ -163,18 +163,17 @@ Files are streamed as sequences of fixed-size chunks. Each chunk packet includes
 Trit uses a multi-threaded producer-consumer pipeline for high-throughput transfers.
 
 **Sender:**
-- Reads files into buffers.
-- Splits large files / aggregates small files into chunks.
+- Reads files into a shared fixed-size buffer, packing multiple small files into one chunk and splitting large files across multiple chunks.
 - Encrypts chunks and sends over socket.
-- Uses bounded queues to decouple producer/consumer stages.
-- Tracks progress for throughput monitoring.
+- Uses bounded queues to decouple the read, encrypt, and send stages.
+- Tracks chunk progress via a dedicated progress thread.
+- Clears the staging area after a successful transfer.
 
 **Receiver:**
 - Receives chunks from socket.
-- Decrypts and verifies integrity.
-- Reconstructs files, ensuring directories exist before writing.
-- Writes data to disk in parallel via synchronized queues.
-- Validates per-file sizes to ensure integrity.
+- Decrypts and verifies integrity of each chunk.
+- Reconstructs files from chunk data, creating any required directories before writing.
+- Tracks chunk progress via a dedicated progress thread.
 
 ### File I/O Layer
 
@@ -184,7 +183,7 @@ The `FileManager` handles efficient chunking and reconstruction:
 - Ensures directory structure exists before writes.
 - Performs per-file integrity checks against declared sizes.
 
-### Compression (Unutilized)
+### Compression (Disabled)
 A compression layer was implemented with zlib to optionally reduce chunk sizes. The compressed flag in each packet was reserved for this purpose.
 
 However, testing showed that throughput decreased with compression:
